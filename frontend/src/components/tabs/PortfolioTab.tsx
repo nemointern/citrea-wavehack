@@ -164,11 +164,6 @@ const PortfolioTab: React.FC = () => {
         <p className="text-pool-muted">
           Your token balances and transaction history
         </p>
-        {address && (
-          <p className="text-sm text-pool-muted mt-2">
-            Connected: {address.slice(0, 6)}...{address.slice(-4)}
-          </p>
-        )}
       </div>
 
       {/* Portfolio Summary */}
@@ -262,14 +257,11 @@ const PortfolioTab: React.FC = () => {
       </div>
 
       {/* Transaction History */}
-      <div>
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold text-pool-text">
             Recent Transactions
           </h3>
-          <button className="text-citrea-500 hover:text-citrea-400 text-sm font-medium">
-            View All
-          </button>
         </div>
 
         <div className="glass-card overflow-hidden">
@@ -343,31 +335,6 @@ const PortfolioTab: React.FC = () => {
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button className="glass-card p-6 hover:bg-pool-border/50 transition-colors text-center">
-          <ArrowDownLeft className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">
-            Bridge More Tokens
-          </h4>
-          <p className="text-sm text-pool-muted">Transfer BRC20 from Bitcoin</p>
-        </button>
-
-        <button className="glass-card p-6 hover:bg-pool-border/50 transition-colors text-center">
-          <TrendingUp className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">
-            Trade in Dark Pool
-          </h4>
-          <p className="text-sm text-pool-muted">MEV-protected trading</p>
-        </button>
-
-        <button className="glass-card p-6 hover:bg-pool-border/50 transition-colors text-center">
-          <ArrowUpRight className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">Bridge Back</h4>
-          <p className="text-sm text-pool-muted">Return tokens to Bitcoin</p>
-        </button>
       </div>
     </div>
   );

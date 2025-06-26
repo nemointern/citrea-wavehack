@@ -1,18 +1,19 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useBlockNumber, useGasPrice } from "wagmi";
 import {
-  Activity,
-  Globe,
   Zap,
-  Users,
   Clock,
   CheckCircle,
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
 import { apiService } from "../../services/api";
+import { formatEther } from "viem";
 
 const MonitorTab: React.FC = () => {
+  const { data: blockNumber } = useBlockNumber();
+  const { data: gasPrice } = useGasPrice();
   // Real API data with auto-refresh every 30 seconds
   const {
     data: healthData,
@@ -47,8 +48,9 @@ const MonitorTab: React.FC = () => {
   const citreaStatus = {
     connected: healthData?.services?.citrea !== null,
     chainId: healthData?.services?.citrea?.chainId || 5115,
-    gasPrice: healthData?.services?.citrea?.gasPrice || "0.001 cBTC",
-    blockTime: healthData?.services?.citrea?.blockTime || "2.1s",
+    // gas price is in wei
+    gasPrice: gasPrice ? formatEther(gasPrice) + " cBTC" : "0 cBTC",
+    blockNumber: blockNumber ? blockNumber.toString() : "0",
     contracts: {
       bridge: { status: "healthy", address: "0x036A...01220" },
       orderBook: { status: "healthy", address: "0x887...81fF" },
@@ -215,9 +217,9 @@ const MonitorTab: React.FC = () => {
                 </p>
               </div>
               <div className="bg-pool-card border border-pool-border rounded-lg p-4">
-                <p className="text-sm text-pool-muted mb-1">Block Time</p>
+                <p className="text-sm text-pool-muted mb-1">Block Number</p>
                 <p className="text-lg font-bold text-pool-text">
-                  {citreaStatus.blockTime}
+                  {blockNumber}
                 </p>
               </div>
             </div>
@@ -252,10 +254,6 @@ const MonitorTab: React.FC = () => {
           <h3 className="text-lg font-semibold text-pool-text">
             Real-time Activity
           </h3>
-          <div className="flex items-center space-x-2">
-            <Activity className="w-5 h-5 text-citrea-500" />
-            <span className="text-sm text-citrea-500">Live</span>
-          </div>
         </div>
 
         <div className="space-y-4">
@@ -304,35 +302,6 @@ const MonitorTab: React.FC = () => {
 
         <div className="mt-6 text-center">
           <button className="btn-secondary">View Full Log</button>
-        </div>
-      </div>
-
-      {/* System Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="glass-card p-4 text-center">
-          <Globe className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">Network Uptime</h4>
-          <p className="text-2xl font-bold text-pool-text">99.9%</p>
-        </div>
-
-        <div className="glass-card p-4 text-center">
-          <Users className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">Active Users</h4>
-          <p className="text-2xl font-bold text-pool-text">247</p>
-        </div>
-
-        <div className="glass-card p-4 text-center">
-          <Activity className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">
-            Transactions/24h
-          </h4>
-          <p className="text-2xl font-bold text-pool-text">1,234</p>
-        </div>
-
-        <div className="glass-card p-4 text-center">
-          <Zap className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">Avg. Block Time</h4>
-          <p className="text-2xl font-bold text-pool-text">2.1s</p>
         </div>
       </div>
     </div>

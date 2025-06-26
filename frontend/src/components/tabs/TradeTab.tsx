@@ -5,7 +5,6 @@ import {
   Shield,
   TrendingUp,
   TrendingDown,
-  Eye,
   EyeOff,
   ArrowUpDown,
 } from "lucide-react";
@@ -322,31 +321,6 @@ const TradeTab: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-card p-4 text-center">
-          <Shield className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">MEV Protection</h4>
-          <p className="text-sm text-pool-muted">
-            Orders are hidden until reveal phase
-          </p>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <Clock className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">Batch Execution</h4>
-          <p className="text-sm text-pool-muted">
-            All orders execute at fair prices
-          </p>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <Eye className="w-8 h-8 text-citrea-500 mx-auto mb-2" />
-          <h4 className="font-semibold text-pool-text mb-1">Private Trading</h4>
-          <p className="text-sm text-pool-muted">
-            No front-running or sandwich attacks
-          </p>
         </div>
       </div>
     </div>
