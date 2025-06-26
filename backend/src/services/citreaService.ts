@@ -119,6 +119,10 @@ export interface ContractAddresses {
   bridge: Address;
   orderBook: Address;
   nUSD: Address;
+  tokens: {
+    wPEPE: Address;
+    wORDI: Address;
+  };
 }
 
 export class CitreaService {

@@ -3,7 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import BTCMonitor from "./services/btcMonitor.js";
 import MatchingEngine from "./services/matchingEngine.js";
-import CitreaService, { ContractAddresses } from "./services/citreaService.js";
+import CitreaService from "./services/citreaService.js";
+import { CITREA_CONTRACTS } from "./config/contracts.js";
 import { Address } from "viem";
 
 // Load environment variables
@@ -75,7 +76,9 @@ app.get("/api/btc/monitor/status", (req, res) => {
     const status = btcMonitor.getStatus();
     res.json(status);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -97,7 +100,9 @@ app.post("/api/bridge/mint", async (req, res) => {
 
     res.json({ success: true, txHash, message: `Minted ${amount} ${ticker}` });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -107,7 +112,9 @@ app.get("/api/bridge/token/:ticker", async (req, res) => {
     const tokenAddress = await citreaService.getWrappedTokenAddress(ticker);
     res.json({ ticker, tokenAddress });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -117,7 +124,9 @@ app.get("/api/darkpool/batch/current", async (req, res) => {
     const currentBatch = await citreaService.getCurrentBatch();
     res.json(currentBatch);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -152,7 +161,9 @@ app.post("/api/darkpool/batch/process", async (req, res) => {
 
     res.json(batchResult);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -161,7 +172,9 @@ app.get("/api/darkpool/matching/stats", (req, res) => {
     const stats = matchingEngine.getMatchingStats();
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -183,7 +196,9 @@ app.get("/api/wallet/:address/balance/:token", async (req, res) => {
 
     res.json({ address, token, balance: balance.toString() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -200,13 +215,10 @@ async function initializeServices() {
 
     // Initialize Citrea Service (if private key is provided)
     if (process.env.PRIVATE_KEY) {
-      const contracts: ContractAddresses = {
-        bridge: "0x0000000000000000000000000000000000000000" as Address, // Will be set after deployment
-        orderBook: "0x0000000000000000000000000000000000000000" as Address, // Will be set after deployment
-        nUSD: process.env.NUSD_CONTRACT as Address,
-      };
-
-      citreaService = new CitreaService(process.env.PRIVATE_KEY, contracts);
+      citreaService = new CitreaService(
+        process.env.PRIVATE_KEY,
+        CITREA_CONTRACTS
+      );
     }
 
     // Set up event listeners

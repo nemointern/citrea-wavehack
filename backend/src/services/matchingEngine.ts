@@ -26,6 +26,7 @@ export interface BatchResult {
   totalMatches: number;
   matches: OrderMatch[];
   executionTime: number;
+  txHash?: string; // Optional transaction hash for blockchain execution
 }
 
 export class MatchingEngine extends EventEmitter {
