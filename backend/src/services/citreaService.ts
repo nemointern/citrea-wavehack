@@ -9,7 +9,7 @@ import {
   parseAbi,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { citreaTestnet } from "../config/citrea.js";
+import { citreaTestnet } from "../config/citrea";
 import { ContractAddresses } from "../config/contracts";
 
 // Import ABIs
