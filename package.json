@@ -1,0 +1,31 @@
+{
+  "name": "citrea-wavehack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hackathon project monorepo",
+  "scripts": {
+    "dev": "concurrently \"bun run backend:dev\" \"bun run frontend:dev\"",
+    "backend:dev": "cd backend && bun run dev",
+    "frontend:dev": "cd frontend && bun run dev",
+    "backend:install": "cd backend && bun install",
+    "frontend:install": "cd frontend && bun install",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test",
+    "install:all": "bun run backend:install && bun run frontend:install"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "hackathon",
+    "monorepo",
+    "blockchain",
+    "citrea"
+  ],
+  "author": "nemotheintern",
+  "license": "MIT"
+}
