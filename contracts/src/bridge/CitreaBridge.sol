@@ -164,6 +164,27 @@ contract CitreaBridge is AccessControl, Pausable, ReentrancyGuard {
     }
     
     /**
+     * @dev Associate an externally deployed wrapped token (admin only)
+     * @param ticker BRC20 ticker
+     * @param tokenAddress Address of the deployed WrappedBRC20 contract
+     */
+    function setWrappedToken(string memory ticker, address tokenAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(tokenAddress != address(0), "Invalid token address");
+        
+        // Get token info from the contract
+        WrappedBRC20 wrappedToken = WrappedBRC20(tokenAddress);
+        
+        wrappedTokens[ticker] = WrappedToken({
+            contractAddress: tokenAddress,
+            originalTicker: ticker,
+            active: true,
+            totalBridged: 0
+        });
+        
+        emit WrappedTokenDeployed(ticker, tokenAddress);
+    }
+
+    /**
      * @dev Get wrapped token address for ticker
      */
     function getWrappedToken(string memory ticker) external view returns (address) {

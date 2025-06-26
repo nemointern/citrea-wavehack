@@ -4,125 +4,17 @@ import {
   http,
   Address,
   parseUnits,
-  parseEther,
-  formatEther,
-  parseAbi,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { citreaTestnet } from "../config/citrea";
 import { ContractAddresses } from "../config/contracts";
 
 // Import ABIs
-import CitreaBridgeABI from "../abis/CitreaBridge.json";
-import OrderBookABI from "../abis/OrderBook.json";
-import WrappedBRC20ABI from "../abis/WrappedBRC20.json";
-
-// Contract ABIs (simplified for hackathon)
-const BRIDGE_ABI = [
-  {
-    inputs: [
-      { type: "address", name: "user" },
-      { type: "string", name: "ticker" },
-      { type: "uint256", name: "amount" },
-      { type: "string", name: "btcTxHash" },
-    ],
-    name: "processBridgeIn",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ type: "string", name: "ticker" }],
-    name: "getWrappedToken",
-    outputs: [{ type: "address", name: "" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ type: "address", name: "user" }],
-    name: "isUserRegistered",
-    outputs: [{ type: "bool", name: "" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
-
-const ORDERBOOK_ABI = [
-  {
-    inputs: [
-      { type: "uint256", name: "batchId" },
-      { type: "uint256[]", name: "buyOrderIds" },
-      { type: "uint256[]", name: "sellOrderIds" },
-      { type: "uint256[]", name: "matchedAmounts" },
-      { type: "uint256[]", name: "executionPrices" },
-    ],
-    name: "processBatch",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getCurrentBatch",
-    outputs: [
-      {
-        type: "tuple",
-        name: "",
-        components: [
-          { type: "uint256", name: "batchId" },
-          { type: "uint256", name: "startTime" },
-          { type: "uint256", name: "endTime" },
-          { type: "uint256[]", name: "orderIds" },
-          { type: "bool", name: "processed" },
-          { type: "uint256", name: "totalOrders" },
-        ],
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ type: "uint256", name: "orderId" }],
-    name: "revealedOrders",
-    outputs: [
-      {
-        type: "tuple",
-        name: "",
-        components: [
-          { type: "address", name: "trader" },
-          { type: "address", name: "tokenA" },
-          { type: "address", name: "tokenB" },
-          { type: "uint256", name: "amount" },
-          { type: "uint256", name: "price" },
-          { type: "uint256", name: "salt" },
-          { type: "uint8", name: "orderType" },
-          { type: "uint256", name: "orderId" },
-          { type: "uint256", name: "batchId" },
-          { type: "bool", name: "executed" },
-        ],
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
-
-const ERC20_ABI = [
-  {
-    inputs: [{ type: "address", name: "account" }],
-    name: "balanceOf",
-    outputs: [{ type: "uint256", name: "" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "totalSupply",
-    outputs: [{ type: "uint256", name: "" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
+import { abi as BRIDGE_ABI } from "../../../contracts/out/CitreaBridge.sol/CitreaBridge.json";
+import { abi as ORDERBOOK_ABI } from "../../../contracts/out/OrderBook.sol/OrderBook.json";
+import { abi as CitreaBridgeABI } from "../../../contracts/out/CitreaBridge.sol/CitreaBridge.json";
+import { abi as WRAPPED_BRC20_ABI } from "../../../contracts/out/WrappedBRC20.sol/WrappedBRC20.json";
+import { abi as ERC20_ABI } from "../../../contracts/out/ERC20.sol/ERC20.json";
 
 export class CitreaService {
   private publicClient;
@@ -187,7 +79,7 @@ export class CitreaService {
     try {
       const result = await this.publicClient.readContract({
         address: this.contracts.bridge,
-        abi: CitreaBridgeABI.abi,
+        abi: BRIDGE_ABI,
         functionName: "getWrappedToken",
         args: [ticker],
       });
@@ -287,7 +179,7 @@ export class CitreaService {
     try {
       const result = await this.publicClient.readContract({
         address: this.contracts.orderBook,
-        abi: OrderBookABI.abi,
+        abi: ORDERBOOK_ABI,
         functionName: "getCurrentBatch",
       });
 
@@ -429,7 +321,7 @@ export class CitreaService {
     try {
       await this.publicClient.readContract({
         address: this.contracts.bridge,
-        abi: CitreaBridgeABI.abi,
+        abi: BRIDGE_ABI,
         functionName: "nextRequestId",
       });
       results.bridge.connected = true;
@@ -441,7 +333,7 @@ export class CitreaService {
     try {
       await this.publicClient.readContract({
         address: this.contracts.orderBook,
-        abi: OrderBookABI.abi,
+        abi: ORDERBOOK_ABI,
         functionName: "currentBatchId",
       });
       results.orderBook.connected = true;
@@ -454,7 +346,7 @@ export class CitreaService {
       try {
         await this.publicClient.readContract({
           address: address,
-          abi: WrappedBRC20ABI.abi,
+          abi: WRAPPED_BRC20_ABI,
           functionName: "totalSupply",
         });
         results.tokens[ticker as keyof typeof results.tokens].connected = true;

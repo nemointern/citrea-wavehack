@@ -123,7 +123,5 @@ contract Deploy is Script {
         ));
         
         // Write to file
-        vm.writeFile("./addresses.json", json);
-        console.log("\nContract addresses saved to addresses.json");
     }
 } 

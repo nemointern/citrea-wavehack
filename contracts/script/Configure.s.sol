@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.0;
 
-import {Script, console} from "forge-std/Script.sol";
+import "forge-std/Script.sol";
 import "../src/bridge/CitreaBridge.sol";
 import "../src/darkpool/OrderBook.sol";
 import "../src/tokens/WrappedBRC20.sol";
@@ -24,21 +24,21 @@ contract Configure is Script {
         
         CitreaBridge bridge = CitreaBridge(BRIDGE_ADDRESS);
         
-        // Check current token associations
-        console.log("\n=== Checking current token associations ===");
-        address pepeToken = bridge.getWrappedToken("pepe");
-        address ordiToken = bridge.getWrappedToken("ordi");
+        console.log("Setting up token mappings...");
         
-        console.log("Current PEPE token address:", pepeToken);
-        console.log("Current ORDI token address:", ordiToken);
+        // Set up wPEPE mapping (case-insensitive)
+        bridge.setWrappedToken("pepe", WPEPE_ADDRESS);
+        bridge.setWrappedToken("PEPE", WPEPE_ADDRESS);
+        bridge.setWrappedToken("wPEPE", WPEPE_ADDRESS);
         
-        // The wrapped tokens were deployed directly, not through the bridge
-        // So we need to manually set up the associations in the bridge contract
-        // This requires modifying the bridge contract to have a setter function
+        // Set up wORDI mapping (case-insensitive)
+        bridge.setWrappedToken("ordi", WORDI_ADDRESS);
+        bridge.setWrappedToken("ORDI", WORDI_ADDRESS);
+        bridge.setWrappedToken("wORDI", WORDI_ADDRESS);
         
-        console.log("\n=== Deployed Token Addresses ===");
-        console.log("wPEPE:", WPEPE_ADDRESS);
-        console.log("wORDI:", WORDI_ADDRESS);
+        console.log("Token mappings configured:");
+        console.log("- pepe/PEPE/wPEPE ->", WPEPE_ADDRESS);
+        console.log("- ordi/ORDI/wORDI ->", WORDI_ADDRESS);
         
         // Check OrderBook current batch
         console.log("\n=== Checking OrderBook ===");
@@ -59,5 +59,6 @@ contract Configure is Script {
         console.log("2. Bridge expects tokens deployed via deployWrappedToken()");
         console.log("3. Current tokens need manual association or re-deployment");
         console.log("4. OrderBook appears to be working correctly");
+        console.log("Configuration complete!");
     }
 } 

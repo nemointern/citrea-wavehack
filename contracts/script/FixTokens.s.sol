@@ -5,49 +5,57 @@ import {Script, console} from "forge-std/Script.sol";
 import "../src/bridge/CitreaBridge.sol";
 
 contract FixTokens is Script {
-    address constant BRIDGE_ADDRESS = 0x036A6AB2D15918B5F35C6BC78905b53763d01220;
+    // Existing deployed token addresses
+    address constant EXISTING_WPEPE = 0x8153c10105315581FaeD05236F18c73A81ff21Db;
+    address constant EXISTING_WORDI = 0xdc572f9189F1d771e5C5c55BE1095B187E102481;
+    address constant EXISTING_ORDERBOOK = 0x887102733A08332d572BfF84262ffa80fFDd81fF;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("Fixing token associations with account:", deployer);
+        console.log("Account balance:", deployer.balance);
         
         vm.startBroadcast(deployerPrivateKey);
         
-        CitreaBridge bridge = CitreaBridge(BRIDGE_ADDRESS);
+        console.log("\n=== Deploying NEW CitreaBridge with setWrappedToken function ===");
+        CitreaBridge newBridge = new CitreaBridge();
+        console.log("New CitreaBridge deployed at:", address(newBridge));
         
-        console.log("\n=== Deploying tokens through bridge ===");
+        console.log("\n=== Associating existing tokens ===");
         
-        // Deploy PEPE token through bridge
-        bridge.deployWrappedToken(
-            "pepe",                    // ticker
-            "Wrapped PEPE",           // name  
-            "wPEPE",                  // symbol
-            1000000000 * 1e18         // maxSupply (1B tokens)
-        );
+        // Associate existing tokens
+        newBridge.setWrappedToken("pepe", EXISTING_WPEPE);
+        newBridge.setWrappedToken("PEPE", EXISTING_WPEPE);
+        newBridge.setWrappedToken("wPEPE", EXISTING_WPEPE);
         
-        // Deploy ORDI token through bridge  
-        bridge.deployWrappedToken(
-            "ordi",                    // ticker
-            "Wrapped ORDI",           // name
-            "wORDI",                  // symbol
-            21000000 * 1e18           // maxSupply (21M tokens)
-        );
+        newBridge.setWrappedToken("ordi", EXISTING_WORDI);
+        newBridge.setWrappedToken("ORDI", EXISTING_WORDI);
+        newBridge.setWrappedToken("wORDI", EXISTING_WORDI);
         
-        // Check the new associations
-        address newPepeToken = bridge.getWrappedToken("pepe");
-        address newOrdiToken = bridge.getWrappedToken("ordi");
+        console.log("Token associations complete:");
+        console.log("- pepe/PEPE/wPEPE ->", EXISTING_WPEPE);
+        console.log("- ordi/ORDI/wORDI ->", EXISTING_WORDI);
         
-        console.log("\n=== New Token Associations ===");
-        console.log("PEPE token address:", newPepeToken);
-        console.log("ORDI token address:", newOrdiToken);
+        // Grant bridge role to new bridge on existing tokens
+        console.log("\n=== Granting bridge roles ===");
+        WrappedBRC20 wpepe = WrappedBRC20(EXISTING_WPEPE);
+        WrappedBRC20 wordi = WrappedBRC20(EXISTING_WORDI);
+        
+        bytes32 bridgeRole = wpepe.BRIDGE_ROLE();
+        wpepe.grantRole(bridgeRole, address(newBridge));
+        wordi.grantRole(bridgeRole, address(newBridge));
+        
+        console.log("Bridge roles granted to new bridge");
         
         vm.stopBroadcast();
         
-        console.log("\n=== Update Required ===");
-        console.log("Update backend/src/config/contracts.ts with new addresses:");
-        console.log("wPEPE:", newPepeToken);
-        console.log("wORDI:", newOrdiToken);
+        console.log("\n=== UPDATE REQUIRED ===");
+        console.log("Update backend config with new bridge address:");
+        console.log("NEW_BRIDGE_ADDRESS =", address(newBridge));
+        console.log("ORDERBOOK_ADDRESS =", EXISTING_ORDERBOOK, "(unchanged)");
+        console.log("WPEPE_ADDRESS =", EXISTING_WPEPE, "(unchanged)");
+        console.log("WORDI_ADDRESS =", EXISTING_WORDI, "(unchanged)");
     }
 } 
