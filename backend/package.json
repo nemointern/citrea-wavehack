@@ -20,13 +20,13 @@
     "bitcoinjs-lib": "^6.1.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0",
+    "express": "^4.21.0",
     "viem": "^2.31.4",
     "wagmi": "^2.15.6"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
+    "@types/express": "^4.17.21",
     "@types/node": "^24.0.4",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",

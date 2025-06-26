@@ -1,10 +1,10 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import BTCMonitor from "./services/btcMonitor.js";
-import MatchingEngine from "./services/matchingEngine.js";
-import CitreaService from "./services/citreaService.js";
-import { CITREA_CONTRACTS } from "./config/contracts.js";
+import BTCMonitor from "./services/btcMonitor";
+import MatchingEngine from "./services/matchingEngine";
+import CitreaService from "./services/citreaService";
+import { CITREA_CONTRACTS } from "./config/contracts";
 import { Address } from "viem";
 
 // Load environment variables
@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.get("/", (req, res) => {
+app.get("/", (req: any, res: any) => {
   res.json({
     message: "Citrea Wave Hackathon Backend API",
     status: "running",
@@ -37,7 +37,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (req: any, res: any) => {
   const btcStatus = btcMonitor?.getStatus() || { isRunning: false };
   const matchingStats = matchingEngine?.getMatchingStats() || { totalPairs: 0 };
   const citreaInfo = citreaService?.getChainInfo() || null;
@@ -54,7 +54,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // BTC Monitor routes
-app.post("/api/btc/monitor/address", (req, res) => {
+app.post("/api/btc/monitor/address", (req: any, res: any) => {
   try {
     const { address } = req.body;
     if (!address) {
@@ -66,12 +66,12 @@ app.post("/api/btc/monitor/address", (req, res) => {
       success: true,
       message: `Address ${address} added to monitoring`,
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get("/api/btc/monitor/status", (req, res) => {
+app.get("/api/btc/monitor/status", (req: any, res: any) => {
   try {
     const status = btcMonitor.getStatus();
     res.json(status);
@@ -83,7 +83,7 @@ app.get("/api/btc/monitor/status", (req, res) => {
 });
 
 // Bridge routes
-app.post("/api/bridge/mint", async (req, res) => {
+app.post("/api/bridge/mint", async (req: any, res: any) => {
   try {
     const { userAddress, ticker, amount, btcTxHash } = req.body;
 
@@ -106,7 +106,7 @@ app.post("/api/bridge/mint", async (req, res) => {
   }
 });
 
-app.get("/api/bridge/token/:ticker", async (req, res) => {
+app.get("/api/bridge/token/:ticker", async (req: any, res: any) => {
   try {
     const { ticker } = req.params;
     const tokenAddress = await citreaService.getWrappedTokenAddress(ticker);
@@ -119,7 +119,7 @@ app.get("/api/bridge/token/:ticker", async (req, res) => {
 });
 
 // Dark Pool routes
-app.get("/api/darkpool/batch/current", async (req, res) => {
+app.get("/api/darkpool/batch/current", async (req: any, res: any) => {
   try {
     const currentBatch = await citreaService.getCurrentBatch();
     res.json(currentBatch);
@@ -130,7 +130,7 @@ app.get("/api/darkpool/batch/current", async (req, res) => {
   }
 });
 
-app.post("/api/darkpool/batch/process", async (req, res) => {
+app.post("/api/darkpool/batch/process", async (req: any, res: any) => {
   try {
     const { batchId, orders } = req.body;
 
@@ -167,7 +167,7 @@ app.post("/api/darkpool/batch/process", async (req, res) => {
   }
 });
 
-app.get("/api/darkpool/matching/stats", (req, res) => {
+app.get("/api/darkpool/matching/stats", (req: any, res: any) => {
   try {
     const stats = matchingEngine.getMatchingStats();
     res.json(stats);
@@ -178,8 +178,28 @@ app.get("/api/darkpool/matching/stats", (req, res) => {
   }
 });
 
+// Test routes
+app.get("/api/test/contracts", async (req: any, res: any) => {
+  try {
+    if (!citreaService) {
+      return res.status(500).json({ error: "Citrea service not initialized" });
+    }
+
+    const testResults = await citreaService.testContracts();
+    res.json({
+      success: true,
+      results: testResults,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    res
+      .status(500)
+      .json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 // Wallet routes
-app.get("/api/wallet/:address/balance/:token", async (req, res) => {
+app.get("/api/wallet/:address/balance/:token", async (req: any, res: any) => {
   try {
     const { address, token } = req.params;
 
@@ -235,7 +255,7 @@ async function initializeServices() {
             transfer.txHash
           );
           console.log(`✅ Auto-processed bridge mint for ${transfer.ticker}`);
-        } catch (error) {
+        } catch (error: any) {
           console.error("❌ Failed to auto-process bridge mint:", error);
         }
       }
@@ -251,7 +271,7 @@ async function initializeServices() {
     await btcMonitor.startMonitoring();
 
     console.log("✅ All services initialized successfully");
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Failed to initialize services:", error);
   }
 }

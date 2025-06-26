@@ -10,14 +10,14 @@ export interface ContractAddresses {
   };
 }
 
-// Deployed contract addresses on Citrea Testnet
+// Deployed contract addresses on Citrea Testnet (LIVE DEPLOYMENT)
 export const CITREA_CONTRACTS: ContractAddresses = {
-  bridge: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-  orderBook: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+  bridge: "0x036A6AB2D15918B5F35C6BC78905b53763d01220",
+  orderBook: "0x887102733A08332d572BfF84262ffa80fFDd81fF",
   nUSD: "0x9B28B690550522608890C3C7e63c0b4A7eBab9AA",
   tokens: {
-    wPEPE: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-    wORDI: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    wPEPE: "0x8153c10105315581FaeD05236F18c73A81ff21Db",
+    wORDI: "0xdc572f9189F1d771e5C5c55BE1095B187E102481",
   },
 };
 
