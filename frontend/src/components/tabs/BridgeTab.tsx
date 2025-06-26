@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAccount } from "wagmi";
 import {
   ArrowRight,
   Copy,
@@ -6,18 +8,40 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Wallet,
 } from "lucide-react";
+import { apiService } from "../../services/api";
 
 const BridgeTab: React.FC = () => {
   const [btcAddress, setBtcAddress] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Mock bridge address
+  // Real wallet connection
+  const { address: walletAddress, isConnected } = useAccount();
+
+  // Real bridge address (this should match your actual bridge address)
   const bridgeAddress = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
+
+  // Get BTC monitor status for real data
+  const { data: btcMonitorData } = useQuery({
+    queryKey: ["btc-monitor"],
+    queryFn: apiService.getBTCMonitorStatus,
+    refetchInterval: 10000,
+  });
+
+  // Mutation for registering address
+  const registerMutation = useMutation({
+    mutationFn: (address: string) => apiService.registerAddress(address),
+    onSuccess: () => {
+      setIsRegistered(true);
+      queryClient.invalidateQueries({ queryKey: ["btc-monitor"] });
+    },
+  });
 
   const handleRegister = () => {
     if (btcAddress.trim()) {
-      setIsRegistered(true);
+      registerMutation.mutate(btcAddress);
     }
   };
 
@@ -36,6 +60,24 @@ const BridgeTab: React.FC = () => {
           Send your BRC20 tokens to Bitcoin and receive wrapped ERC20 tokens on
           Citrea
         </p>
+
+        {/* Wallet Status */}
+        {isConnected && walletAddress ? (
+          <div className="mt-4 inline-flex items-center space-x-2 px-4 py-2 bg-green-400/10 border border-green-400/20 rounded-lg">
+            <Wallet className="w-4 h-4 text-green-400" />
+            <span className="text-sm text-green-400">
+              Bridged tokens will be sent to: {walletAddress.slice(0, 6)}...
+              {walletAddress.slice(-4)}
+            </span>
+          </div>
+        ) : (
+          <div className="mt-4 inline-flex items-center space-x-2 px-4 py-2 bg-yellow-400/10 border border-yellow-400/20 rounded-lg">
+            <Wallet className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm text-yellow-400">
+              Connect wallet to receive bridged tokens
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Steps */}
@@ -70,14 +112,23 @@ const BridgeTab: React.FC = () => {
               <button
                 onClick={handleRegister}
                 className="btn-citrea w-full"
-                disabled={!btcAddress.trim()}
+                disabled={!btcAddress.trim() || registerMutation.isPending}
               >
-                Register for Monitoring
+                {registerMutation.isPending
+                  ? "Registering..."
+                  : "Register for Monitoring"}
               </button>
             ) : (
               <div className="flex items-center text-green-400 bg-green-400/10 border border-green-400/20 rounded-lg p-3">
                 <CheckCircle className="w-5 h-5 mr-2" />
                 <span className="text-sm">Address registered successfully</span>
+              </div>
+            )}
+
+            {registerMutation.error && (
+              <div className="flex items-center text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg p-3">
+                <AlertCircle className="w-5 h-5 mr-2" />
+                <span className="text-sm">Failed to register address</span>
               </div>
             )}
           </div>
@@ -160,12 +211,26 @@ const BridgeTab: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-pool-muted">Last checked block:</span>
-              <span className="font-mono text-pool-text">4547250</span>
+              <span className="font-mono text-pool-text">
+                {btcMonitorData?.currentBlock?.toLocaleString() || "..."}
+              </span>
             </div>
 
-            <div className="flex items-center text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-lg p-3">
+            <div
+              className={`flex items-center border rounded-lg p-3 ${
+                btcMonitorData?.isRunning
+                  ? "text-green-400 bg-green-400/10 border-green-400/20"
+                  : "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
+              }`}
+            >
               <Clock className="w-5 h-5 mr-2" />
-              <span className="text-sm">Watching for transactions...</span>
+              <span className="text-sm">
+                {btcMonitorData?.isRunning
+                  ? `Monitoring ${
+                      btcMonitorData.monitoredAddresses?.length || 0
+                    } addresses`
+                  : "Starting monitoring..."}
+              </span>
             </div>
 
             {/* Recent transfers placeholder */}

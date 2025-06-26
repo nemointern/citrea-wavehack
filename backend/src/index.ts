@@ -37,20 +37,31 @@ app.get("/", (req: any, res: any) => {
   });
 });
 
-app.get("/api/health", (req: any, res: any) => {
-  const btcStatus = btcMonitor?.getStatus() || { isRunning: false };
-  const matchingStats = matchingEngine?.getMatchingStats() || { totalPairs: 0 };
-  const citreaInfo = citreaService?.getChainInfo() || null;
+app.get("/api/health", async (req: any, res: any) => {
+  try {
+    const btcStatus = btcMonitor
+      ? await btcMonitor.getStatus()
+      : { isRunning: false, currentBlock: 0 };
+    const matchingStats = matchingEngine?.getMatchingStats() || {
+      totalPairs: 0,
+    };
+    const citreaInfo = citreaService?.getChainInfo() || null;
 
-  res.json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    services: {
-      btcMonitor: btcStatus,
-      matchingEngine: matchingStats,
-      citrea: citreaInfo,
-    },
-  });
+    res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      services: {
+        btcMonitor: btcStatus,
+        matchingEngine: matchingStats,
+        citrea: citreaInfo,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 });
 
 // BTC Monitor routes
@@ -71,9 +82,12 @@ app.post("/api/btc/monitor/address", (req: any, res: any) => {
   }
 });
 
-app.get("/api/btc/monitor/status", (req: any, res: any) => {
+app.get("/api/btc/monitor/status", async (req: any, res: any) => {
   try {
-    const status = btcMonitor.getStatus();
+    if (!btcMonitor) {
+      return res.status(503).json({ error: "BTC monitor not initialized" });
+    }
+    const status = await btcMonitor.getStatus();
     res.json(status);
   } catch (error) {
     res
@@ -121,12 +135,26 @@ app.get("/api/bridge/token/:ticker", async (req: any, res: any) => {
 // Dark Pool routes
 app.get("/api/darkpool/batch/current", async (req: any, res: any) => {
   try {
+    if (!citreaService) {
+      return res.json({
+        batchId: 1,
+        phase: "COMMIT",
+        timeRemaining: 300,
+        ordersCommitted: 0,
+        message: "Smart contracts not deployed - demo mode",
+      });
+    }
     const currentBatch = await citreaService.getCurrentBatch();
     res.json(currentBatch);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: error instanceof Error ? error.message : String(error) });
+    // Return demo data if contracts aren't deployed
+    res.json({
+      batchId: 1,
+      phase: "COMMIT",
+      timeRemaining: 300,
+      ordersCommitted: 0,
+      message: "Smart contracts not deployed - demo mode",
+    });
   }
 });
 
@@ -203,6 +231,15 @@ app.get("/api/wallet/:address/balance/:token", async (req: any, res: any) => {
   try {
     const { address, token } = req.params;
 
+    if (!citreaService) {
+      return res.json({
+        address,
+        token,
+        balance: "0",
+        message: "Smart contracts not deployed - demo mode",
+      });
+    }
+
     let balance: bigint;
     if (token.toLowerCase() === "nusd") {
       balance = await citreaService.getNUSDBalance(address as Address);
@@ -216,9 +253,13 @@ app.get("/api/wallet/:address/balance/:token", async (req: any, res: any) => {
 
     res.json({ address, token, balance: balance.toString() });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: error instanceof Error ? error.message : String(error) });
+    // Return demo balance if contracts aren't deployed or address is invalid
+    res.json({
+      address: req.params.address,
+      token: req.params.token,
+      balance: "0",
+      message: "Smart contracts not deployed or invalid address - demo mode",
+    });
   }
 });
 

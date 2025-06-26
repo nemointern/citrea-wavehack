@@ -318,16 +318,34 @@ export class BTCMonitor extends EventEmitter {
   /**
    * Get monitoring status
    */
-  getStatus(): {
+  async getStatus(): Promise<{
     isRunning: boolean;
     monitoredAddresses: string[];
     lastProcessedBlock: number;
-  } {
-    return {
-      isRunning: this.polling,
-      monitoredAddresses: Array.from(this.monitoredAddresses),
-      lastProcessedBlock: this.lastProcessedBlock,
-    };
+    currentBlock: number;
+    lastUpdate: string;
+    pendingTransfers?: number;
+  }> {
+    try {
+      const currentBlock = await this.getCurrentBlockHeight();
+      return {
+        isRunning: this.polling,
+        monitoredAddresses: Array.from(this.monitoredAddresses),
+        lastProcessedBlock: this.lastProcessedBlock,
+        currentBlock,
+        lastUpdate: new Date().toISOString(),
+        pendingTransfers: 0,
+      };
+    } catch (error) {
+      return {
+        isRunning: this.polling,
+        monitoredAddresses: Array.from(this.monitoredAddresses),
+        lastProcessedBlock: this.lastProcessedBlock,
+        currentBlock: this.lastProcessedBlock,
+        lastUpdate: "Failed to fetch",
+        pendingTransfers: 0,
+      };
+    }
   }
 }
 

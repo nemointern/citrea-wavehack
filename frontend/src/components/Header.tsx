@@ -1,11 +1,17 @@
 import React from "react";
-import { Wallet, Zap, Globe, Copy, ExternalLink } from "lucide-react";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useBalance, useConnect, useDisconnect } from "wagmi";
+import { injected } from "wagmi/connectors";
+import { Wallet, Zap, Globe, Copy, ExternalLink, LogOut } from "lucide-react";
 
 const Header: React.FC = () => {
-  // Mock wallet data - we'll connect this to wagmi later
-  const isConnected = true;
-  const address = "0x4f0B5579136F88135572010276c2a4A884729E7b";
-  const balance = "0.748";
+  // Real wallet data from wagmi
+  const { address, isConnected } = useAccount();
+  const { data: balanceData } = useBalance({
+    address,
+  });
+  const { connect, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
 
   const truncateAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -49,12 +55,16 @@ const Header: React.FC = () => {
 
           {/* Wallet */}
           <div className="flex items-center space-x-4">
-            {isConnected ? (
+            {isConnected && address ? (
               <div className="flex items-center space-x-3">
                 {/* Balance */}
                 <div className="text-right">
                   <p className="text-sm font-medium text-pool-text">
-                    {balance} cBTC
+                    {balanceData
+                      ? `${parseFloat(balanceData.formatted).toFixed(4)} ${
+                          balanceData.symbol
+                        }`
+                      : "..."}
                   </p>
                   <p className="text-xs text-pool-muted">Balance</p>
                 </div>
@@ -79,13 +89,28 @@ const Header: React.FC = () => {
                   >
                     <ExternalLink className="w-3 h-3 text-pool-muted" />
                   </a>
+                  <button
+                    onClick={() => disconnect()}
+                    className="p-1 hover:bg-pool-border rounded transition-colors"
+                    title="Disconnect wallet"
+                  >
+                    <LogOut className="w-3 h-3 text-pool-muted" />
+                  </button>
                 </div>
               </div>
             ) : (
-              <button className="btn-citrea">
-                <Wallet className="w-4 h-4 mr-2" />
-                Connect Wallet
-              </button>
+              <div className="flex items-center space-x-2">
+                <ConnectButton />
+                {/* Custom wallet connect as backup */}
+                <button
+                  onClick={() => connect({ connector: injected() })}
+                  disabled={isPending}
+                  className="btn-citrea text-sm"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  {isPending ? "Connecting..." : "MetaMask"}
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from "wagmi";
+import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import {
   Activity,
   BarChart3,
@@ -8,6 +10,10 @@ import {
   GitBranch,
   Globe,
 } from "lucide-react";
+import { config } from "./config/wagmi";
+
+// Import RainbowKit styles
+import "@rainbow-me/rainbowkit/styles.css";
 
 // Import components (we'll create these)
 import Header from "./components/Header";
@@ -143,8 +149,17 @@ function App() {
 // Main export with providers
 export default function AppWithProviders() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: "#7c3aed",
+            borderRadius: "medium",
+          })}
+        >
+          <App />
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }

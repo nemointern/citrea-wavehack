@@ -1,4 +1,5 @@
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
   Globe,
@@ -7,23 +8,47 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
+import { apiService } from "../../services/api";
 
 const MonitorTab: React.FC = () => {
-  // Mock data
+  // Real API data with auto-refresh every 30 seconds
+  const {
+    data: healthData,
+    isLoading: healthLoading,
+    error: healthError,
+    refetch: refetchHealth,
+  } = useQuery({
+    queryKey: ["health"],
+    queryFn: apiService.getHealth,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const {
+    data: btcMonitorData,
+    isLoading: btcLoading,
+    error: btcError,
+  } = useQuery({
+    queryKey: ["btc-monitor"],
+    queryFn: apiService.getBTCMonitorStatus,
+    refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  // Format the data for display
   const btcStatus = {
-    connected: true,
-    currentBlock: 4547250,
-    monitoredAddresses: 3,
-    pendingTransfers: 1,
-    lastUpdate: "2 seconds ago",
+    connected: btcMonitorData?.isRunning || false,
+    currentBlock: btcMonitorData?.currentBlock || 0,
+    monitoredAddresses: btcMonitorData?.monitoredAddresses?.length || 0,
+    pendingTransfers: btcMonitorData?.pendingTransfers || 0,
+    lastUpdate: btcMonitorData?.lastUpdate || "Unknown",
   };
 
   const citreaStatus = {
-    connected: true,
-    chainId: 5115,
-    gasPrice: "0.001 cBTC",
-    blockTime: "2.1s",
+    connected: healthData?.services?.citrea !== null,
+    chainId: healthData?.services?.citrea?.chainId || 5115,
+    gasPrice: healthData?.services?.citrea?.gasPrice || "0.001 cBTC",
+    blockTime: healthData?.services?.citrea?.blockTime || "2.1s",
     contracts: {
       bridge: { status: "healthy", address: "0x036A...01220" },
       orderBook: { status: "healthy", address: "0x887...81fF" },
@@ -32,27 +57,30 @@ const MonitorTab: React.FC = () => {
     },
   };
 
+  // Generate activity based on real data
   const recentActivity = [
     {
       id: 1,
       type: "btc_block",
-      message: "New Bitcoin block processed: 4547250",
-      time: "30 seconds ago",
-      status: "success",
+      message: `Bitcoin monitoring: Block ${btcStatus.currentBlock}`,
+      time: btcStatus.lastUpdate,
+      status: btcStatus.connected ? "success" : "error",
     },
     {
       id: 2,
       type: "dark_pool",
-      message: "Dark pool batch #42 executed: 12 orders matched",
-      time: "2 minutes ago",
+      message: `Matching engine: ${
+        healthData?.services?.matchingEngine?.totalPairs || 0
+      } pairs active`,
+      time: "Live",
       status: "success",
     },
     {
       id: 3,
       type: "bridge",
-      message: "BRC20 transfer detected: 1000 PEPE",
-      time: "5 minutes ago",
-      status: "pending",
+      message: `${btcStatus.monitoredAddresses} addresses monitored`,
+      time: "Live",
+      status: btcStatus.pendingTransfers > 0 ? "pending" : "success",
     },
   ];
 
@@ -60,12 +88,29 @@ const MonitorTab: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-pool-text mb-2">
-          Network Monitor
-        </h2>
+        <div className="flex items-center justify-center space-x-4 mb-2">
+          <h2 className="text-2xl font-bold text-pool-text">Network Monitor</h2>
+          <button
+            onClick={() => refetchHealth()}
+            disabled={healthLoading || btcLoading}
+            className="p-2 rounded-lg border border-pool-border hover:bg-pool-border transition-colors disabled:opacity-50"
+            title="Refresh data"
+          >
+            <RefreshCw
+              className={`w-4 h-4 text-pool-muted ${
+                healthLoading || btcLoading ? "animate-spin" : ""
+              }`}
+            />
+          </button>
+        </div>
         <p className="text-pool-muted">
           Live monitoring of Bitcoin and Citrea networks
         </p>
+        {(healthError || btcError) && (
+          <div className="mt-2 text-sm text-red-400">
+            {healthError?.message || btcError?.message || "Failed to load data"}
+          </div>
+        )}
       </div>
 
       {/* Network Status Cards */}
@@ -100,8 +145,15 @@ const MonitorTab: React.FC = () => {
               <div className="bg-pool-card border border-pool-border rounded-lg p-4">
                 <p className="text-sm text-pool-muted mb-1">Current Block</p>
                 <p className="text-lg font-bold text-pool-text font-mono">
-                  {btcStatus.currentBlock.toLocaleString()}
+                  {btcStatus.currentBlock > 0
+                    ? btcStatus.currentBlock.toLocaleString()
+                    : "Loading..."}
                 </p>
+                {btcStatus.currentBlock > 0 && (
+                  <p className="text-xs text-green-400 mt-1">
+                    ✓ Live Bitcoin data
+                  </p>
+                )}
               </div>
               <div className="bg-pool-card border border-pool-border rounded-lg p-4">
                 <p className="text-sm text-pool-muted mb-1">
@@ -176,20 +228,18 @@ const MonitorTab: React.FC = () => {
                 Smart Contracts
               </h4>
               <div className="space-y-2">
-                {Object.entries(citreaStatus.contracts).map(
-                  ([name, contract]) => (
-                    <div
-                      key={name}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="text-pool-muted capitalize">{name}</span>
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-green-400" />
-                        <span className="text-green-400">Healthy</span>
-                      </div>
+                {Object.entries(citreaStatus.contracts).map(([name]) => (
+                  <div
+                    key={name}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span className="text-pool-muted capitalize">{name}</span>
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-green-400">Healthy</span>
                     </div>
-                  )
-                )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>

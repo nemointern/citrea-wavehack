@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Clock,
   Shield,
@@ -8,6 +9,7 @@ import {
   EyeOff,
   ArrowUpDown,
 } from "lucide-react";
+import { apiService } from "../../services/api";
 
 const TradeTab: React.FC = () => {
   const [orderType, setOrderType] = useState<"buy" | "sell">("buy");
@@ -16,12 +18,30 @@ const TradeTab: React.FC = () => {
   const [tokenA, setTokenA] = useState("wPEPE");
   const [tokenB, setTokenB] = useState("nUSD");
 
-  // Mock batch data
+  // Real batch data with auto-refresh every 5 seconds
+  const { data: currentBatchData, isLoading: batchLoading } = useQuery({
+    queryKey: ["current-batch"],
+    queryFn: apiService.getCurrentBatch,
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
+
+  const { data: matchingStatsData } = useQuery({
+    queryKey: ["matching-stats"],
+    queryFn: apiService.getMatchingStats,
+    refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  // Use real data or fallback to reasonable defaults
   const currentBatch = {
-    id: 42,
-    phase: "COMMIT",
-    timeRemaining: 225, // seconds
-    ordersCommitted: 12,
+    id: currentBatchData?.batchId || 1,
+    phase:
+      (currentBatchData?.phase?.toUpperCase() as
+        | "COMMIT"
+        | "REVEAL"
+        | "EXECUTE") || "COMMIT",
+    timeRemaining: currentBatchData?.timeRemaining || 300,
+    ordersCommitted:
+      currentBatchData?.ordersCommitted || currentBatchData?.totalOrders || 0,
   };
 
   const formatTime = (seconds: number) => {
@@ -101,9 +121,33 @@ const TradeTab: React.FC = () => {
                   Orders Committed
                 </span>
                 <span className="text-lg font-bold text-pool-text">
-                  {currentBatch.ordersCommitted}
+                  {batchLoading ? "..." : currentBatch.ordersCommitted}
                 </span>
               </div>
+
+              {/* Matching Stats */}
+              {matchingStatsData && (
+                <div className="text-xs text-pool-muted bg-pool-card border border-pool-border rounded p-2">
+                  <div className="flex justify-between">
+                    <span>Total Orders:</span>
+                    <span>{matchingStatsData.totalOrders || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Matches:</span>
+                    <span>{matchingStatsData.totalMatches || 0}</span>
+                  </div>
+                  <div className="text-xs text-green-400 mt-1">
+                    ✓ Live matching engine
+                  </div>
+                </div>
+              )}
+
+              {/* Demo mode indicator */}
+              {currentBatchData?.message && (
+                <div className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded p-2">
+                  ⚠️ {currentBatchData.message}
+                </div>
+              )}
 
               {/* MEV Protection indicator */}
               <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-3">
