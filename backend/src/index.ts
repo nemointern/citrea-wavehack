@@ -396,6 +396,263 @@ app.get("/api/darkpool/matching/stats", (req: any, res: any) => {
   }
 });
 
+// Order management endpoints
+interface OrderSubmission {
+  tokenA: string;
+  tokenB: string;
+  amount: string;
+  price: string;
+  orderType: "BUY" | "SELL";
+  userAddress?: string;
+}
+
+interface UserOrder {
+  orderId: number;
+  batchId: number;
+  tokenA: string;
+  tokenB: string;
+  amount: string;
+  price: string;
+  orderType: "BUY" | "SELL";
+  status: "COMMITTED" | "REVEALED" | "MATCHED" | "FAILED";
+  commitHash?: string;
+  salt?: string;
+  timestamp: number;
+  trader: string;
+}
+
+// In-memory storage for orders (in production, use database)
+const userOrders: Map<string, UserOrder[]> = new Map();
+let nextOrderId = 1;
+
+function generateSalt(): string {
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  );
+}
+
+function generateCommitHash(orderData: OrderSubmission, salt: string): string {
+  const dataStr = `${orderData.tokenA}-${orderData.tokenB}-${orderData.amount}-${orderData.price}-${orderData.orderType}-${salt}`;
+  // Simple hash for demo (in production, use proper cryptographic hash)
+  return Buffer.from(dataStr).toString("base64");
+}
+
+app.post("/api/darkpool/order/submit", async (req: any, res: any) => {
+  try {
+    const orderData: OrderSubmission = req.body;
+    const { tokenA, tokenB, amount, price, orderType, userAddress } = orderData;
+
+    if (!tokenA || !tokenB || !amount || !price || !orderType) {
+      return res.status(400).json({
+        error:
+          "Missing required parameters: tokenA, tokenB, amount, price, orderType",
+      });
+    }
+
+    // For demo purposes, always allow order submission
+    const currentBatch = {
+      batchId: 1,
+      phase: "COMMIT",
+    };
+
+    console.log(`📋 Current batch phase: ${currentBatch.phase}`);
+
+    if (currentBatch.phase !== "COMMIT") {
+      return res.status(400).json({
+        error: "Orders can only be submitted during COMMIT phase",
+        currentPhase: currentBatch.phase,
+      });
+    }
+
+    const salt = generateSalt();
+    const commitHash = generateCommitHash(orderData, salt);
+    const trader = userAddress || `trader_${nextOrderId}`;
+
+    const newOrder: UserOrder = {
+      orderId: nextOrderId++,
+      batchId: currentBatch.batchId,
+      tokenA,
+      tokenB,
+      amount,
+      price,
+      orderType: orderType as "BUY" | "SELL",
+      status: "COMMITTED",
+      commitHash,
+      salt,
+      timestamp: Date.now(),
+      trader,
+    };
+
+    // Store order
+    if (!userOrders.has(trader)) {
+      userOrders.set(trader, []);
+    }
+    userOrders.get(trader)!.push(newOrder);
+
+    console.log(
+      `📝 Order submitted: ${newOrder.orderId} (${orderType} ${amount} ${tokenA} for ${price} ${tokenB})`
+    );
+
+    res.json({
+      orderId: newOrder.orderId,
+      batchId: newOrder.batchId,
+      commitHash,
+      salt, // Return salt for reveal phase
+      success: true,
+      message: `Order ${newOrder.orderId} committed successfully`,
+    });
+  } catch (error) {
+    console.error("❌ Error submitting order:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get("/api/darkpool/orders/user/:userAddress", (req: any, res: any) => {
+  try {
+    const { userAddress } = req.params;
+
+    const orders = userOrders.get(userAddress) || [];
+
+    res.json({
+      orders: orders.map((order) => ({
+        orderId: order.orderId,
+        batchId: order.batchId,
+        tokenA: order.tokenA,
+        tokenB: order.tokenB,
+        amount: order.amount,
+        price: order.price,
+        orderType: order.orderType,
+        status: order.status,
+        commitHash: order.commitHash,
+        timestamp: order.timestamp,
+        trader: order.trader,
+      })),
+      count: orders.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.post("/api/darkpool/order/reveal", (req: any, res: any) => {
+  try {
+    const { orderId, salt, amount, price } = req.body;
+
+    if (!orderId || !salt || !amount || !price) {
+      return res.status(400).json({
+        error: "Missing required parameters: orderId, salt, amount, price",
+      });
+    }
+
+    // Find the order
+    let foundOrder: UserOrder | null = null;
+    let userKey: string | null = null;
+
+    for (const [user, orders] of userOrders.entries()) {
+      const order = orders.find((o) => o.orderId === orderId);
+      if (order) {
+        foundOrder = order;
+        userKey = user;
+        break;
+      }
+    }
+
+    if (!foundOrder || !userKey) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (foundOrder.status !== "COMMITTED") {
+      return res.status(400).json({
+        error: `Order ${orderId} cannot be revealed, current status: ${foundOrder.status}`,
+      });
+    }
+
+    // Verify the reveal data matches the commitment
+    const expectedHash = generateCommitHash(
+      {
+        tokenA: foundOrder.tokenA,
+        tokenB: foundOrder.tokenB,
+        amount,
+        price,
+        orderType: foundOrder.orderType,
+      },
+      salt
+    );
+
+    if (expectedHash !== foundOrder.commitHash) {
+      return res.status(400).json({
+        error: "Invalid reveal data - does not match commitment hash",
+      });
+    }
+
+    // Update order status
+    foundOrder.status = "REVEALED";
+
+    console.log(
+      `🎭 Order revealed: ${orderId} (${foundOrder.orderType} ${amount} ${foundOrder.tokenA})`
+    );
+
+    res.json({
+      success: true,
+      message: `Order ${orderId} revealed successfully`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.post("/api/darkpool/order/cancel", (req: any, res: any) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ error: "Missing orderId parameter" });
+    }
+
+    // Find and remove the order
+    let found = false;
+
+    for (const [user, orders] of userOrders.entries()) {
+      const orderIndex = orders.findIndex((o) => o.orderId === orderId);
+      if (orderIndex !== -1) {
+        const order = orders[orderIndex];
+
+        if (order.status === "MATCHED") {
+          return res.status(400).json({
+            error: "Cannot cancel matched order",
+          });
+        }
+
+        orders.splice(orderIndex, 1);
+        found = true;
+
+        console.log(`❌ Order cancelled: ${orderId}`);
+        break;
+      }
+    }
+
+    if (!found) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json({
+      success: true,
+      message: `Order ${orderId} cancelled successfully`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
 // Test routes
 app.get("/api/test/contracts", async (req: any, res: any) => {
   try {

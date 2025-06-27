@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAccount } from "wagmi";
 import {
   Clock,
   Shield,
@@ -7,30 +8,137 @@ import {
   TrendingDown,
   EyeOff,
   ArrowUpDown,
+  Eye,
+  X,
+  AlertTriangle,
+  CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { apiService } from "../../services/api";
 
-const TradeTab: React.FC = () => {
-  const [orderType, setOrderType] = useState<"buy" | "sell">("buy");
-  const [amount, setAmount] = useState("");
-  const [price, setPrice] = useState("");
-  const [tokenA, setTokenA] = useState("wPEPE");
-  const [tokenB, setTokenB] = useState("nUSD");
+interface OrderFormData {
+  tokenA: string;
+  tokenB: string;
+  amount: string;
+  price: string;
+  orderType: "BUY" | "SELL";
+}
 
-  // Real batch data with auto-refresh every 5 seconds
+const TradeTab: React.FC = () => {
+  const { address } = useAccount();
+  const queryClient = useQueryClient();
+
+  // Form state
+  const [orderForm, setOrderForm] = useState<OrderFormData>({
+    tokenA: "wPEPE",
+    tokenB: "nUSD",
+    amount: "",
+    price: "",
+    orderType: "BUY",
+  });
+
+  const [showMyOrders, setShowMyOrders] = useState(false);
+  const [selectedOrderForReveal, setSelectedOrderForReveal] = useState<
+    number | null
+  >(null);
+  const [revealData, setRevealData] = useState({
+    salt: "",
+    amount: "",
+    price: "",
+  });
+  const [notification, setNotification] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
+
+  // Real-time data queries
   const { data: currentBatchData, isLoading: batchLoading } = useQuery({
     queryKey: ["current-batch"],
     queryFn: apiService.getCurrentBatch,
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 5000,
   });
 
   const { data: matchingStatsData } = useQuery({
     queryKey: ["matching-stats"],
     queryFn: apiService.getMatchingStats,
-    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchInterval: 10000,
   });
 
-  // Use real data or fallback to reasonable defaults
+  const { data: userOrdersData } = useQuery({
+    queryKey: ["user-orders", address],
+    queryFn: () =>
+      address
+        ? apiService.getUserOrders(address)
+        : Promise.resolve({ orders: [], count: 0 }),
+    enabled: !!address,
+    refetchInterval: 3000,
+  });
+
+  // Mutations
+  const submitOrderMutation = useMutation({
+    mutationFn: apiService.submitOrder,
+    onSuccess: (data) => {
+      setNotification({
+        type: "success",
+        message: `Order ${data.orderId} committed successfully! Save your salt: ${data.salt}`,
+      });
+      // Reset form
+      setOrderForm({ ...orderForm, amount: "", price: "" });
+      // Refetch orders
+      queryClient.invalidateQueries({ queryKey: ["user-orders"] });
+    },
+    onError: (error: Error) => {
+      setNotification({
+        type: "error",
+        message: `Failed to submit order: ${error.message}`,
+      });
+    },
+  });
+
+  const revealOrderMutation = useMutation({
+    mutationFn: apiService.revealOrder,
+    onSuccess: () => {
+      setNotification({
+        type: "success",
+        message: "Order revealed successfully!",
+      });
+      setSelectedOrderForReveal(null);
+      setRevealData({ salt: "", amount: "", price: "" });
+      queryClient.invalidateQueries({ queryKey: ["user-orders"] });
+    },
+    onError: (error: Error) => {
+      setNotification({
+        type: "error",
+        message: `Failed to reveal order: ${error.message}`,
+      });
+    },
+  });
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: apiService.cancelOrder,
+    onSuccess: () => {
+      setNotification({
+        type: "success",
+        message: "Order cancelled successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["user-orders"] });
+    },
+    onError: (error: Error) => {
+      setNotification({
+        type: "error",
+        message: `Failed to cancel order: ${error.message}`,
+      });
+    },
+  });
+
+  // Auto-hide notifications
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   const currentBatch = {
     id: currentBatchData?.batchId || 1,
     phase:
@@ -39,9 +147,10 @@ const TradeTab: React.FC = () => {
         | "REVEAL"
         | "EXECUTE") || "COMMIT",
     timeRemaining: currentBatchData?.timeRemaining || 300,
-    ordersCommitted:
-      currentBatchData?.ordersCommitted || currentBatchData?.totalOrders || 0,
+    ordersCommitted: currentBatchData?.ordersCommitted || 0,
   };
+
+  const userOrders = userOrdersData?.orders || [];
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -50,14 +159,133 @@ const TradeTab: React.FC = () => {
   };
 
   const handleSwapTokens = () => {
-    const temp = tokenA;
-    setTokenA(tokenB);
-    setTokenB(temp);
-    setOrderType(orderType === "buy" ? "sell" : "buy");
+    setOrderForm({
+      ...orderForm,
+      tokenA: orderForm.tokenB,
+      tokenB: orderForm.tokenA,
+      orderType: orderForm.orderType === "BUY" ? "SELL" : "BUY",
+    });
+  };
+
+  const handleSubmitOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!address) {
+      setNotification({
+        type: "error",
+        message: "Please connect your wallet to submit orders",
+      });
+      return;
+    }
+
+    if (!orderForm.amount || !orderForm.price) {
+      setNotification({
+        type: "error",
+        message: "Please fill in amount and price",
+      });
+      return;
+    }
+
+    if (currentBatch.phase !== "COMMIT") {
+      setNotification({
+        type: "error",
+        message: "Orders can only be submitted during COMMIT phase",
+      });
+      return;
+    }
+
+    submitOrderMutation.mutate({
+      ...orderForm,
+      userAddress: address,
+    });
+  };
+
+  const handleRevealOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      !selectedOrderForReveal ||
+      !revealData.salt ||
+      !revealData.amount ||
+      !revealData.price
+    ) {
+      setNotification({
+        type: "error",
+        message: "Please fill in all reveal data",
+      });
+      return;
+    }
+
+    revealOrderMutation.mutate({
+      orderId: selectedOrderForReveal,
+      salt: revealData.salt,
+      amount: revealData.amount,
+      price: revealData.price,
+    });
+  };
+
+  const getOrderStatusColor = (status: string) => {
+    switch (status) {
+      case "COMMITTED":
+        return "text-yellow-400";
+      case "REVEALED":
+        return "text-blue-400";
+      case "MATCHED":
+        return "text-green-400";
+      case "FAILED":
+        return "text-red-400";
+      default:
+        return "text-pool-muted";
+    }
+  };
+
+  const getOrderStatusIcon = (status: string) => {
+    switch (status) {
+      case "COMMITTED":
+        return <EyeOff className="w-4 h-4" />;
+      case "REVEALED":
+        return <Eye className="w-4 h-4" />;
+      case "MATCHED":
+        return <CheckCircle className="w-4 h-4" />;
+      case "FAILED":
+        return <X className="w-4 h-4" />;
+      default:
+        return <Clock className="w-4 h-4" />;
+    }
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Notification */}
+      {notification && (
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg border backdrop-blur-md ${
+            notification.type === "success"
+              ? "bg-green-500/10 border-green-500/20 text-green-400"
+              : notification.type === "error"
+              ? "bg-red-500/10 border-red-500/20 text-red-400"
+              : "bg-blue-500/10 border-blue-500/20 text-blue-400"
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            {notification.type === "success" && (
+              <CheckCircle className="w-5 h-5" />
+            )}
+            {notification.type === "error" && (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            {notification.type === "info" && <Clock className="w-5 h-5" />}
+            <span className="text-sm font-medium">{notification.message}</span>
+            <button
+              onClick={() => setNotification(null)}
+              className="ml-2 text-pool-muted hover:text-pool-text"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-pool-text mb-2">
@@ -70,7 +298,7 @@ const TradeTab: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Batch Status */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-6">
           <div className="glass-card p-6 glow-orange">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-pool-text">
@@ -97,7 +325,12 @@ const TradeTab: React.FC = () => {
                   <div
                     className="bg-citrea-500 h-2 rounded-full transition-all duration-1000"
                     style={{
-                      width: currentBatch.phase === "COMMIT" ? "60%" : "90%",
+                      width:
+                        currentBatch.phase === "COMMIT"
+                          ? "33%"
+                          : currentBatch.phase === "REVEAL"
+                          ? "66%"
+                          : "100%",
                     }}
                   ></div>
                 </div>
@@ -128,8 +361,8 @@ const TradeTab: React.FC = () => {
               {matchingStatsData && (
                 <div className="text-xs text-pool-muted bg-pool-card border border-pool-border rounded p-2">
                   <div className="flex justify-between">
-                    <span>Total Orders:</span>
-                    <span>{matchingStatsData.totalOrders || 0}</span>
+                    <span>Trading Pairs:</span>
+                    <span>{matchingStatsData.totalPairs || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Total Matches:</span>
@@ -141,14 +374,7 @@ const TradeTab: React.FC = () => {
                 </div>
               )}
 
-              {/* Demo mode indicator */}
-              {currentBatchData?.message && (
-                <div className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded p-2">
-                  ⚠️ {currentBatchData.message}
-                </div>
-              )}
-
-              {/* MEV Protection indicator */}
+              {/* MEV Protection */}
               <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-3">
                 <div className="flex items-center space-x-2">
                   <Shield className="w-5 h-5 text-green-400" />
@@ -157,11 +383,92 @@ const TradeTab: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-pool-muted mt-1">
-                  Your order is hidden until reveal phase
+                  Orders are hidden until reveal phase
                 </p>
               </div>
             </div>
           </div>
+
+          {/* My Orders Toggle */}
+          {address && (
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-pool-text">
+                  My Orders
+                </h3>
+                <button
+                  onClick={() => setShowMyOrders(!showMyOrders)}
+                  className="text-sm text-citrea-500 hover:text-citrea-400"
+                >
+                  {showMyOrders ? "Hide" : "Show"} ({userOrders.length})
+                </button>
+              </div>
+
+              {showMyOrders && (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {userOrders.length === 0 ? (
+                    <p className="text-sm text-pool-muted text-center py-4">
+                      No orders yet
+                    </p>
+                  ) : (
+                    userOrders.map((order) => (
+                      <div
+                        key={order.orderId}
+                        className="bg-pool-card border border-pool-border rounded-lg p-3"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-pool-text">
+                            Order #{order.orderId}
+                          </span>
+                          <div
+                            className={`flex items-center space-x-1 ${getOrderStatusColor(
+                              order.status
+                            )}`}
+                          >
+                            {getOrderStatusIcon(order.status)}
+                            <span className="text-xs">{order.status}</span>
+                          </div>
+                        </div>
+                        <div className="text-xs text-pool-muted">
+                          {order.orderType} {order.amount} {order.tokenA} @{" "}
+                          {order.price} {order.tokenB}
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-pool-muted">
+                            Batch #{order.batchId}
+                          </span>
+                          <div className="flex space-x-1">
+                            {order.status === "COMMITTED" &&
+                              currentBatch.phase === "REVEAL" && (
+                                <button
+                                  onClick={() =>
+                                    setSelectedOrderForReveal(order.orderId)
+                                  }
+                                  className="text-xs text-blue-400 hover:text-blue-300"
+                                >
+                                  Reveal
+                                </button>
+                              )}
+                            {order.status === "COMMITTED" && (
+                              <button
+                                onClick={() =>
+                                  cancelOrderMutation.mutate(order.orderId)
+                                }
+                                className="text-xs text-red-400 hover:text-red-300"
+                                disabled={cancelOrderMutation.isPending}
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Order Form */}
@@ -177,13 +484,16 @@ const TradeTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-6">
+            <form onSubmit={handleSubmitOrder} className="space-y-6">
               {/* Order Type */}
               <div className="flex space-x-2">
                 <button
-                  onClick={() => setOrderType("buy")}
+                  type="button"
+                  onClick={() =>
+                    setOrderForm({ ...orderForm, orderType: "BUY" })
+                  }
                   className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-                    orderType === "buy"
+                    orderForm.orderType === "BUY"
                       ? "bg-green-500 text-white"
                       : "bg-pool-card border border-pool-border text-pool-muted hover:text-pool-text"
                   }`}
@@ -192,9 +502,12 @@ const TradeTab: React.FC = () => {
                   Buy
                 </button>
                 <button
-                  onClick={() => setOrderType("sell")}
+                  type="button"
+                  onClick={() =>
+                    setOrderForm({ ...orderForm, orderType: "SELL" })
+                  }
                   className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-                    orderType === "sell"
+                    orderForm.orderType === "SELL"
                       ? "bg-red-500 text-white"
                       : "bg-pool-card border border-pool-border text-pool-muted hover:text-pool-text"
                   }`}
@@ -205,124 +518,264 @@ const TradeTab: React.FC = () => {
               </div>
 
               {/* Token Pair */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-pool-text mb-2">
-                      From
-                    </label>
-                    <select
-                      value={tokenA}
-                      onChange={(e) => setTokenA(e.target.value)}
-                      className="input-field w-full"
-                    >
-                      <option value="wPEPE">wPEPE</option>
-                      <option value="wORDI">wORDI</option>
-                      <option value="nUSD">nUSD</option>
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={handleSwapTokens}
-                    className="mt-8 p-2 rounded-lg border border-pool-border hover:bg-pool-border transition-colors"
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-pool-text mb-2">
+                    From
+                  </label>
+                  <select
+                    value={orderForm.tokenA}
+                    onChange={(e) =>
+                      setOrderForm({ ...orderForm, tokenA: e.target.value })
+                    }
+                    className="input-field w-full"
                   >
-                    <ArrowUpDown className="w-4 h-4 text-pool-muted" />
-                  </button>
-
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-pool-text mb-2">
-                      To
-                    </label>
-                    <select
-                      value={tokenB}
-                      onChange={(e) => setTokenB(e.target.value)}
-                      className="input-field w-full"
-                    >
-                      <option value="nUSD">nUSD</option>
-                      <option value="wPEPE">wPEPE</option>
-                      <option value="wORDI">wORDI</option>
-                    </select>
-                  </div>
+                    <option value="wPEPE">wPEPE</option>
+                    <option value="wORDI">wORDI</option>
+                    <option value="wCTRA">wCTRA</option>
+                    <option value="nUSD">nUSD</option>
+                  </select>
                 </div>
 
-                {/* Amount */}
-                <div>
-                  <label className="block text-sm font-medium text-pool-text mb-2">
-                    Amount
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="input-field w-full pr-16"
-                    />
-                    <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-pool-muted text-sm">
-                      {tokenA}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div>
-                  <label className="block text-sm font-medium text-pool-text mb-2">
-                    Price per {tokenA}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      placeholder="0.0001"
-                      className="input-field w-full pr-16"
-                    />
-                    <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-pool-muted text-sm">
-                      {tokenB}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Order Summary */}
-                {amount && price && (
-                  <div className="bg-pool-card border border-pool-border rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-pool-muted">Total</span>
-                      <span className="text-pool-text font-medium">
-                        {(parseFloat(amount) * parseFloat(price)).toFixed(4)}{" "}
-                        {tokenB}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-pool-muted">Order Type</span>
-                      <span className="text-pool-text capitalize">
-                        {orderType}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Submit Button */}
                 <button
-                  className="btn-citrea w-full"
-                  disabled={
-                    !amount || !price || currentBatch.phase !== "COMMIT"
-                  }
+                  type="button"
+                  onClick={handleSwapTokens}
+                  className="mt-8 p-2 rounded-lg border border-pool-border hover:bg-pool-border transition-colors"
                 >
-                  {currentBatch.phase === "COMMIT" ? (
-                    <>
-                      <Shield className="w-4 h-4 mr-2" />
-                      Commit Order (Hidden)
-                    </>
-                  ) : (
-                    "Commit Phase Ended"
-                  )}
+                  <ArrowUpDown className="w-4 h-4 text-pool-muted" />
                 </button>
+
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-pool-text mb-2">
+                    To
+                  </label>
+                  <select
+                    value={orderForm.tokenB}
+                    onChange={(e) =>
+                      setOrderForm({ ...orderForm, tokenB: e.target.value })
+                    }
+                    className="input-field w-full"
+                  >
+                    <option value="nUSD">nUSD</option>
+                    <option value="wPEPE">wPEPE</option>
+                    <option value="wORDI">wORDI</option>
+                    <option value="wCTRA">wCTRA</option>
+                  </select>
+                </div>
               </div>
-            </div>
+
+              {/* Amount */}
+              <div>
+                <label className="block text-sm font-medium text-pool-text mb-2">
+                  Amount
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="any"
+                    value={orderForm.amount}
+                    onChange={(e) =>
+                      setOrderForm({ ...orderForm, amount: e.target.value })
+                    }
+                    placeholder="0.00"
+                    className="input-field w-full pr-16"
+                    required
+                  />
+                  <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-pool-muted text-sm">
+                    {orderForm.tokenA}
+                  </span>
+                </div>
+              </div>
+
+              {/* Price */}
+              <div>
+                <label className="block text-sm font-medium text-pool-text mb-2">
+                  Price per {orderForm.tokenA}
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="any"
+                    value={orderForm.price}
+                    onChange={(e) =>
+                      setOrderForm({ ...orderForm, price: e.target.value })
+                    }
+                    placeholder="0.0001"
+                    className="input-field w-full pr-16"
+                    required
+                  />
+                  <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-pool-muted text-sm">
+                    {orderForm.tokenB}
+                  </span>
+                </div>
+              </div>
+
+              {/* Order Summary */}
+              {orderForm.amount && orderForm.price && (
+                <div className="bg-pool-card border border-pool-border rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-pool-muted">Total</span>
+                    <span className="text-pool-text font-medium">
+                      {(
+                        parseFloat(orderForm.amount) *
+                        parseFloat(orderForm.price)
+                      ).toFixed(6)}{" "}
+                      {orderForm.tokenB}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-pool-muted">Order Type</span>
+                    <span className="text-pool-text capitalize">
+                      {orderForm.orderType}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-pool-muted">Batch</span>
+                    <span className="text-pool-text">#{currentBatch.id}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className="btn-citrea w-full"
+                disabled={
+                  !orderForm.amount ||
+                  !orderForm.price ||
+                  currentBatch.phase !== "COMMIT" ||
+                  submitOrderMutation.isPending ||
+                  !address
+                }
+              >
+                {submitOrderMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : !address ? (
+                  "Connect Wallet to Trade"
+                ) : currentBatch.phase === "COMMIT" ? (
+                  <>
+                    <Shield className="w-4 h-4 mr-2" />
+                    Commit Order (Hidden)
+                  </>
+                ) : (
+                  `${currentBatch.phase} Phase - Orders Locked`
+                )}
+              </button>
+
+              {!address && (
+                <p className="text-sm text-yellow-400 text-center">
+                  ⚠️ Connect your wallet to submit orders
+                </p>
+              )}
+            </form>
           </div>
         </div>
       </div>
+
+      {/* Reveal Order Modal */}
+      {selectedOrderForReveal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card p-6 max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-pool-text">
+                Reveal Order #{selectedOrderForReveal}
+              </h3>
+              <button
+                onClick={() => setSelectedOrderForReveal(null)}
+                className="text-pool-muted hover:text-pool-text"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRevealOrder} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-pool-text mb-2">
+                  Salt (from order submission)
+                </label>
+                <input
+                  type="text"
+                  value={revealData.salt}
+                  onChange={(e) =>
+                    setRevealData({ ...revealData, salt: e.target.value })
+                  }
+                  placeholder="Enter salt from when you submitted the order"
+                  className="input-field w-full"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-pool-text mb-2">
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  value={revealData.amount}
+                  onChange={(e) =>
+                    setRevealData({ ...revealData, amount: e.target.value })
+                  }
+                  placeholder="Original amount"
+                  className="input-field w-full"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-pool-text mb-2">
+                  Price
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  value={revealData.price}
+                  onChange={(e) =>
+                    setRevealData({ ...revealData, price: e.target.value })
+                  }
+                  placeholder="Original price"
+                  className="input-field w-full"
+                  required
+                />
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderForReveal(null)}
+                  className="flex-1 px-4 py-2 border border-pool-border text-pool-text rounded-lg hover:bg-pool-border transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 btn-citrea"
+                  disabled={revealOrderMutation.isPending}
+                >
+                  {revealOrderMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Revealing...
+                    </>
+                  ) : (
+                    "Reveal Order"
+                  )}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-4 p-3 bg-blue-400/10 border border-blue-400/20 rounded-lg">
+              <p className="text-xs text-blue-400">
+                💡 Enter the exact same amount and price you used when
+                submitting the order, along with the salt that was provided.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

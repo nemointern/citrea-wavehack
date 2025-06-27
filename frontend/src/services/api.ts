@@ -110,6 +110,102 @@ export const apiService = {
     return response.json();
   },
 
+  // Order management
+  async submitOrder(order: {
+    tokenA: string;
+    tokenB: string;
+    amount: string;
+    price: string;
+    orderType: "BUY" | "SELL";
+    userAddress?: string;
+  }): Promise<{
+    orderId: number;
+    batchId: number;
+    commitHash: string;
+    salt: string;
+    success: boolean;
+    message: string;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/darkpool/order/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(order),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        error.message || `Failed to submit order: ${response.statusText}`
+      );
+    }
+
+    return response.json();
+  },
+
+  async getUserOrders(userAddress: string): Promise<{
+    orders: Array<{
+      orderId: number;
+      batchId: number;
+      tokenA: string;
+      tokenB: string;
+      amount: string;
+      price: string;
+      orderType: "BUY" | "SELL";
+      status: "COMMITTED" | "REVEALED" | "MATCHED" | "FAILED";
+      commitHash?: string;
+      timestamp: number;
+      trader: string;
+    }>;
+    count: number;
+  }> {
+    const response = await fetch(
+      `${API_BASE_URL}/darkpool/orders/user/${userAddress}`
+    );
+    if (!response.ok) throw new Error("Failed to fetch user orders");
+    return response.json();
+  },
+
+  async revealOrder(revealData: {
+    orderId: number;
+    salt: string;
+    amount: string;
+    price: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/darkpool/order/reveal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(revealData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        error.message || `Failed to reveal order: ${response.statusText}`
+      );
+    }
+
+    return response.json();
+  },
+
+  async cancelOrder(
+    orderId: number
+  ): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${API_BASE_URL}/darkpool/order/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        error.message || `Failed to cancel order: ${response.statusText}`
+      );
+    }
+
+    return response.json();
+  },
+
   // Wallet operations
   async getTokenBalance(
     address: string,
