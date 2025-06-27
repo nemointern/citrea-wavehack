@@ -28,7 +28,7 @@ interface BridgeRequest {
 }
 
 const BridgeTab: React.FC = () => {
-  const [selectedToken, setSelectedToken] = useState<"PEPE" | "ORDI" | "CTRA">(
+  const [selectedToken, setSelectedToken] = useState<"CTRA" | "PEPE" | "ORDI">(
     "CTRA"
   );
   const [currentRequest, setCurrentRequest] = useState<{
@@ -141,48 +141,6 @@ const BridgeTab: React.FC = () => {
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-gradient mb-3">
-          Bridge BRC20 → Citrea
-        </h2>
-        <p className="text-pool-muted text-lg">
-          Send BRC20 tokens from Bitcoin and receive wrapped tokens on Citrea
-        </p>
-
-        {/* Real-time Bridge Stats */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="glass-card p-4">
-            <div className="text-2xl font-bold text-citrea-500">
-              {bridgeStats?.totalRequests || 0}
-            </div>
-            <div className="text-sm text-pool-muted">Total Bridges</div>
-          </div>
-          <div className="glass-card p-4">
-            <div className="text-2xl font-bold text-green-400">
-              {bridgeStats?.completed || 0}
-            </div>
-            <div className="text-sm text-pool-muted">Completed</div>
-          </div>
-          <div className="glass-card p-4">
-            <div className="text-2xl font-bold text-yellow-400">
-              {bridgeStatus?.pendingRequests || 0}
-            </div>
-            <div className="text-sm text-pool-muted">Pending</div>
-          </div>
-          <div className="glass-card p-4">
-            <div className="text-2xl font-bold text-pool-text">
-              {bridgeStatus?.isProcessing ? (
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2" />
-                  Live
-                </span>
-              ) : (
-                "Offline"
-              )}
-            </div>
-            <div className="text-sm text-pool-muted">Bridge Status</div>
-          </div>
-        </div>
-
         {/* Wallet Status */}
         {isConnected && walletAddress ? (
           <div className="mt-6 inline-flex items-center space-x-2 px-6 py-3 bg-green-400/10 border border-green-400/20 rounded-xl">
@@ -216,11 +174,11 @@ const BridgeTab: React.FC = () => {
                 Select BRC20 Token
               </label>
               <div className="grid grid-cols-3 gap-4">
-                {["PEPE", "ORDI", "CTRA"].map((token) => (
+                {["CTRA", "PEPE", "ORDI"].map((token) => (
                   <button
                     key={token}
                     onClick={() =>
-                      setSelectedToken(token as "PEPE" | "ORDI" | "CTRA")
+                      setSelectedToken(token as "CTRA" | "PEPE" | "ORDI")
                     }
                     className={`p-4 rounded-xl border-2 transition-all ${
                       selectedToken === token
@@ -494,7 +452,40 @@ const BridgeTab: React.FC = () => {
           </div>
         </div>
       )}
-
+      {/* Real-time Bridge Stats */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="glass-card p-4">
+          <div className="text-2xl font-bold text-citrea-500">
+            {bridgeStats?.totalRequests || 0}
+          </div>
+          <div className="text-sm text-pool-muted">Total Bridges</div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-2xl font-bold text-green-400">
+            {bridgeStats?.completed || 0}
+          </div>
+          <div className="text-sm text-pool-muted">Completed</div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-2xl font-bold text-yellow-400">
+            {bridgeStatus?.pendingRequests || 0}
+          </div>
+          <div className="text-sm text-pool-muted">Pending</div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-2xl font-bold text-pool-text">
+            {bridgeStatus?.isProcessing ? (
+              <span className="flex items-center">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2" />
+                Live
+              </span>
+            ) : (
+              "Offline"
+            )}
+          </div>
+          <div className="text-sm text-pool-muted">Bridge Status</div>
+        </div>
+      </div>
       {/* Flow Visualization */}
       <div className="flex items-center justify-center space-x-6 py-8">
         <div className="flex flex-col items-center space-y-2">

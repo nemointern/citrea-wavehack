@@ -5,7 +5,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, useBlockNumber } from "wagmi";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
-import { Monitor, Wallet, GitBranch, Shield, BarChart3 } from "lucide-react";
+import { Monitor, Wallet, GitBranch, Shield } from "lucide-react";
 import { config } from "./config/wagmi";
 
 // Import RainbowKit styles
@@ -17,12 +17,11 @@ import BridgeTab from "./components/tabs/BridgeTab";
 import TradeTab from "./components/tabs/TradeTab";
 import PortfolioTab from "./components/tabs/PortfolioTab";
 import MonitorTab from "./components/tabs/MonitorTab";
-import DarkPoolDashboard from "./components/tabs/DarkPoolDashboard";
 
 // Create query client
 const queryClient = new QueryClient();
 
-type TabId = "bridge" | "trade" | "analytics" | "portfolio" | "monitor";
+type TabId = "bridge" | "trade" | "portfolio" | "monitor";
 
 interface Tab {
   id: TabId;
@@ -46,13 +45,6 @@ const tabs: Tab[] = [
     icon: Shield,
     component: TradeTab,
     description: "MEV-protected trading",
-  },
-  {
-    id: "analytics",
-    label: "Analytics",
-    icon: BarChart3,
-    component: DarkPoolDashboard,
-    description: "Advanced trading analytics",
   },
   {
     id: "portfolio",

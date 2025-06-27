@@ -91,7 +91,6 @@ const MonitorTab: React.FC = () => {
       {/* Header */}
       <div className="text-center">
         <div className="flex items-center justify-center space-x-4 mb-2">
-          <h2 className="text-2xl font-bold text-pool-text">Network Monitor</h2>
           <button
             onClick={() => refetchHealth()}
             disabled={healthLoading || btcLoading}
@@ -105,9 +104,6 @@ const MonitorTab: React.FC = () => {
             />
           </button>
         </div>
-        <p className="text-pool-muted">
-          Live monitoring of Bitcoin and Citrea networks
-        </p>
         {(healthError || btcError) && (
           <div className="mt-2 text-sm text-red-400">
             {healthError?.message || btcError?.message || "Failed to load data"}
@@ -298,10 +294,6 @@ const MonitorTab: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="mt-6 text-center">
-          <button className="btn-secondary">View Full Log</button>
         </div>
       </div>
     </div>

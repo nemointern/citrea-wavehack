@@ -44,6 +44,8 @@ const TradeTab: React.FC = () => {
     revealHash,
     commitError,
     revealError,
+    refreshOrderId,
+    refreshOrderStatuses,
   } = useOrderBook();
 
   // Form state
@@ -84,12 +86,6 @@ const TradeTab: React.FC = () => {
     queryKey: ["current-batch"],
     queryFn: apiService.getCurrentBatch,
     refetchInterval: 5000,
-  });
-
-  const { data: matchingStatsData } = useQuery({
-    queryKey: ["matching-stats"],
-    queryFn: apiService.getMatchingStats,
-    refetchInterval: 10000,
   });
 
   const { data: userOrdersData } = useQuery({
@@ -178,9 +174,8 @@ const TradeTab: React.FC = () => {
     ordersCommitted: currentBatchData?.ordersCommitted || 0,
   };
 
-  // Use wallet orders (from smart contract) combined with API orders (from backend)
-  const apiOrders = userOrdersData?.orders || [];
-  const userOrders = [...walletOrders, ...apiOrders];
+  // Use wallet orders (from smart contract) - API orders are no longer needed
+  const userOrders = walletOrders;
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -255,12 +250,10 @@ const TradeTab: React.FC = () => {
     }
 
     try {
-      // Find the order index in userOrders array
-      const orderIndex = userOrders.findIndex(
-        (order) => order.orderId === selectedOrderForReveal
-      );
+      // selectedOrderForReveal is already the array index, use it directly
+      const order = userOrders[selectedOrderForReveal];
 
-      if (orderIndex === -1) {
+      if (!order) {
         setNotification({
           type: "error",
           message: "Order not found",
@@ -268,8 +261,10 @@ const TradeTab: React.FC = () => {
         return;
       }
 
+      console.log("Revealing order:", order);
+
       // Call smart contract directly with user's wallet using order index
-      await revealOrder(orderIndex);
+      await revealOrder(selectedOrderForReveal as number);
 
       setNotification({
         type: "success",
@@ -419,23 +414,6 @@ const TradeTab: React.FC = () => {
                 </span>
               </div>
 
-              {/* Matching Stats */}
-              {matchingStatsData && (
-                <div className="text-xs text-pool-muted bg-pool-card border border-pool-border rounded p-2">
-                  <div className="flex justify-between">
-                    <span>Trading Pairs:</span>
-                    <span>{matchingStatsData.totalPairs || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Total Matches:</span>
-                    <span>{matchingStatsData.totalMatches || 0}</span>
-                  </div>
-                  <div className="text-xs text-green-400 mt-1">
-                    ✓ Live matching engine
-                  </div>
-                </div>
-              )}
-
               {/* MEV Protection */}
               <div className="bg-green-400/10 border border-green-400/20 rounded-lg p-3">
                 <div className="flex items-center space-x-2">
@@ -466,6 +444,50 @@ const TradeTab: React.FC = () => {
                 </button>
               </div>
 
+              {/* Order Status Summary */}
+              {userOrders.length > 0 && (
+                <div className="mb-4 p-3 bg-pool-card/50 border border-pool-border rounded-lg">
+                  <div className="text-xs text-pool-muted mb-2">
+                    Order Status Summary:
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <div className="flex items-center space-x-1">
+                      <EyeOff className="w-3 h-3 text-yellow-400" />
+                      <span className="text-yellow-400">
+                        {
+                          userOrders.filter(
+                            (order) => order.status === "COMMITTED"
+                          ).length
+                        }{" "}
+                        Committed
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Eye className="w-3 h-3 text-blue-400" />
+                      <span className="text-blue-400">
+                        {
+                          userOrders.filter(
+                            (order) => order.status === "REVEALED"
+                          ).length
+                        }{" "}
+                        Revealed
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <CheckCircle className="w-3 h-3 text-green-400" />
+                      <span className="text-green-400">
+                        {
+                          userOrders.filter(
+                            (order) => order.status === "MATCHED"
+                          ).length
+                        }{" "}
+                        Matched
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {showMyOrders && (
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {userOrders.length === 0 ? (
@@ -475,50 +497,168 @@ const TradeTab: React.FC = () => {
                   ) : (
                     userOrders.map((order, index) => (
                       <div
-                        key={order.orderId}
-                        className="bg-pool-card border border-pool-border rounded-lg p-3"
+                        key={order.txHash || `order-${index}`}
+                        className={`border rounded-lg p-3 ${
+                          order.status === "COMMITTED"
+                            ? "bg-yellow-500/5 border-yellow-500/20"
+                            : order.status === "REVEALED"
+                            ? "bg-blue-500/5 border-blue-500/20"
+                            : order.status === "MATCHED"
+                            ? "bg-green-500/5 border-green-500/20"
+                            : "bg-pool-card border-pool-border"
+                        }`}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-pool-text">
-                            Order #{order.orderId || "Pending"}
-                          </span>
-                          <div
-                            className={`flex items-center space-x-1 ${getOrderStatusColor(
-                              order.status
-                            )}`}
-                          >
-                            {getOrderStatusIcon(order.status)}
-                            <span className="text-xs">{order.status}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-pool-text">
+                              Order #{order.orderId || "Pending"}
+                            </span>
+                            {!order.realOrderId && order.txHash && (
+                              <button
+                                onClick={async () => {
+                                  console.log(
+                                    "Refreshing order ID for:",
+                                    order.txHash
+                                  );
+                                  try {
+                                    const result = await refreshOrderId(
+                                      order.txHash
+                                    );
+                                    console.log("Refresh result:", result);
+                                    if (result) {
+                                      setNotification({
+                                        type: "success",
+                                        message: `Order ID updated: #${result}`,
+                                      });
+                                    } else {
+                                      setNotification({
+                                        type: "error",
+                                        message:
+                                          "Could not fetch order ID. Check console for details.",
+                                      });
+                                    }
+                                  } catch (error) {
+                                    console.error(
+                                      "Error refreshing order ID:",
+                                      error
+                                    );
+                                    setNotification({
+                                      type: "error",
+                                      message: "Failed to refresh order ID",
+                                    });
+                                  }
+                                }}
+                                className="text-xs text-citrea-500 hover:text-citrea-400 px-1 py-0.5 rounded border border-citrea-500/30"
+                                title="Fetch order ID from blockchain"
+                              >
+                                Refresh ID
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {/* Enhanced Status Badge */}
+                            <div
+                              className={`flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium ${
+                                order.status === "COMMITTED"
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : order.status === "REVEALED"
+                                  ? "bg-blue-500/20 text-blue-400"
+                                  : order.status === "MATCHED"
+                                  ? "bg-green-500/20 text-green-400"
+                                  : "bg-pool-border text-pool-muted"
+                              }`}
+                            >
+                              {getOrderStatusIcon(order.status)}
+                              <span>{order.status}</span>
+                            </div>
                           </div>
                         </div>
-                        <div className="text-xs text-pool-muted">
+
+                        {/* Order Details */}
+                        <div className="text-xs text-pool-muted mb-2">
                           {order.orderType} {order.amount} {order.tokenA} @{" "}
                           {order.price} {order.tokenB}
                         </div>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-pool-muted">
-                            Batch #{order.batchId}
-                          </span>
+
+                        {/* Batch and Status Info */}
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center space-x-3">
+                            <span className="text-pool-muted">
+                              Batch #{order.batchId}
+                              {Number(order.batchId) ===
+                                Number(currentBatch.id) && (
+                                <span className="ml-1 text-citrea-500">
+                                  (Current)
+                                </span>
+                              )}
+                            </span>
+                            {order.status === "COMMITTED" && (
+                              <span className="text-yellow-400">
+                                {Number(order.batchId) ===
+                                Number(currentBatch.id)
+                                  ? currentBatch.phase === "COMMIT"
+                                    ? "⏳ Waiting for reveal phase"
+                                    : currentBatch.phase === "REVEAL"
+                                    ? "🔄 Can reveal now"
+                                    : "⏰ Reveal phase ended"
+                                  : "❌ Reveal phase ended"}
+                              </span>
+                            )}
+                            {order.status === "REVEALED" && (
+                              <span className="text-blue-400">
+                                ✅ Ready for matching
+                              </span>
+                            )}
+                            {order.status === "MATCHED" && (
+                              <span className="text-green-400">
+                                🎉 Successfully matched
+                              </span>
+                            )}
+                          </div>
                           <div className="flex space-x-1">
                             {order.status === "COMMITTED" &&
                               currentBatch.phase === "REVEAL" &&
-                              order.realOrderId && (
+                              Number(order.batchId) ===
+                                Number(currentBatch.id) && (
                                 <button
                                   onClick={() =>
                                     setSelectedOrderForReveal(index)
                                   }
                                   className="text-xs text-blue-400 hover:text-blue-300"
+                                  disabled={!order.realOrderId}
+                                  title={
+                                    !order.realOrderId
+                                      ? "Waiting for order ID from blockchain..."
+                                      : "Reveal your order"
+                                  }
                                 >
-                                  Reveal
+                                  {!order.realOrderId ? "Pending..." : "Reveal"}
                                 </button>
                               )}
                             {order.status === "COMMITTED" && (
                               <button
                                 onClick={() =>
+                                  Number(order.batchId) ===
+                                    Number(currentBatch.id) &&
                                   cancelOrderMutation.mutate(order.orderId)
                                 }
-                                className="text-xs text-red-400 hover:text-red-300"
-                                disabled={cancelOrderMutation.isPending}
+                                className={`text-xs transition-colors ${
+                                  Number(order.batchId) ===
+                                  Number(currentBatch.id)
+                                    ? "text-red-400 hover:text-red-300"
+                                    : "text-gray-500 cursor-not-allowed"
+                                }`}
+                                disabled={
+                                  cancelOrderMutation.isPending ||
+                                  Number(order.batchId) !==
+                                    Number(currentBatch.id)
+                                }
+                                title={
+                                  Number(order.batchId) !==
+                                  Number(currentBatch.id)
+                                    ? "Cannot cancel orders from previous batches"
+                                    : "Cancel order"
+                                }
                               >
                                 Cancel
                               </button>

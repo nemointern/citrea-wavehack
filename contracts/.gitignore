@@ -79,7 +79,7 @@ typings/
 
 # Next.js build output
 .next
-out
+
 
 # Nuxt.js build / generate output
 .nuxt
@@ -153,7 +153,6 @@ frontend/dist/
 frontend/build/
 
 # Contracts specific
-contracts/out/
 contracts/cache/
 contracts/broadcast/
 
