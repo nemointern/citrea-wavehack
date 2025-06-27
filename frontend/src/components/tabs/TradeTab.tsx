@@ -13,8 +13,11 @@ import {
   AlertTriangle,
   CheckCircle,
   Loader2,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { apiService } from "../../services/api";
+import { useOrderBook } from "../../hooks/useOrderBook";
 
 interface OrderFormData {
   tokenA: string;
@@ -27,6 +30,21 @@ interface OrderFormData {
 const TradeTab: React.FC = () => {
   const { address } = useAccount();
   const queryClient = useQueryClient();
+
+  // Wallet-based order book hook
+  const {
+    commitOrder,
+    revealOrder,
+    commitmentData,
+    currentBatch: smartContractBatch,
+    userOrders: walletOrders,
+    isCommitPending,
+    isRevealPending,
+    commitHash,
+    revealHash,
+    commitError,
+    revealError,
+  } = useOrderBook();
 
   // Form state
   const [orderForm, setOrderForm] = useState<OrderFormData>({
@@ -50,6 +68,16 @@ const TradeTab: React.FC = () => {
     type: "success" | "error" | "info";
     message: string;
   } | null>(null);
+
+  // Store completed orders for reveal
+  const [completedOrders, setCompletedOrders] = useState<
+    Array<{
+      orderId: number;
+      salt: string;
+      orderData: OrderFormData;
+      txHash: string;
+    }>
+  >([]);
 
   // Real-time data queries
   const { data: currentBatchData, isLoading: batchLoading } = useQuery({
@@ -150,7 +178,9 @@ const TradeTab: React.FC = () => {
     ordersCommitted: currentBatchData?.ordersCommitted || 0,
   };
 
-  const userOrders = userOrdersData?.orders || [];
+  // Use wallet orders (from smart contract) combined with API orders (from backend)
+  const apiOrders = userOrdersData?.orders || [];
+  const userOrders = [...walletOrders, ...apiOrders];
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -194,34 +224,66 @@ const TradeTab: React.FC = () => {
       return;
     }
 
-    submitOrderMutation.mutate({
-      ...orderForm,
-      userAddress: address,
-    });
+    try {
+      // Call smart contract directly with user's wallet
+      const result = await commitOrder(orderForm);
+
+      setNotification({
+        type: "success",
+        message: `Order committed! Please save your salt: ${result.salt}`,
+      });
+
+      // Reset form
+      setOrderForm({ ...orderForm, amount: "", price: "" });
+    } catch (error: any) {
+      setNotification({
+        type: "error",
+        message: `Failed to commit order: ${error.message}`,
+      });
+    }
   };
 
   const handleRevealOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (
-      !selectedOrderForReveal ||
-      !revealData.salt ||
-      !revealData.amount ||
-      !revealData.price
-    ) {
+    if (selectedOrderForReveal === null) {
       setNotification({
         type: "error",
-        message: "Please fill in all reveal data",
+        message: "Please select an order to reveal",
       });
       return;
     }
 
-    revealOrderMutation.mutate({
-      orderId: selectedOrderForReveal,
-      salt: revealData.salt,
-      amount: revealData.amount,
-      price: revealData.price,
-    });
+    try {
+      // Find the order index in userOrders array
+      const orderIndex = userOrders.findIndex(
+        (order) => order.orderId === selectedOrderForReveal
+      );
+
+      if (orderIndex === -1) {
+        setNotification({
+          type: "error",
+          message: "Order not found",
+        });
+        return;
+      }
+
+      // Call smart contract directly with user's wallet using order index
+      await revealOrder(orderIndex);
+
+      setNotification({
+        type: "success",
+        message: "Order revealed successfully!",
+      });
+
+      setSelectedOrderForReveal(null);
+      setRevealData({ salt: "", amount: "", price: "" });
+    } catch (error: any) {
+      setNotification({
+        type: "error",
+        message: `Failed to reveal order: ${error.message}`,
+      });
+    }
   };
 
   const getOrderStatusColor = (status: string) => {
@@ -411,14 +473,14 @@ const TradeTab: React.FC = () => {
                       No orders yet
                     </p>
                   ) : (
-                    userOrders.map((order) => (
+                    userOrders.map((order, index) => (
                       <div
                         key={order.orderId}
                         className="bg-pool-card border border-pool-border rounded-lg p-3"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-pool-text">
-                            Order #{order.orderId}
+                            Order #{order.orderId || "Pending"}
                           </span>
                           <div
                             className={`flex items-center space-x-1 ${getOrderStatusColor(
@@ -439,10 +501,11 @@ const TradeTab: React.FC = () => {
                           </span>
                           <div className="flex space-x-1">
                             {order.status === "COMMITTED" &&
-                              currentBatch.phase === "REVEAL" && (
+                              currentBatch.phase === "REVEAL" &&
+                              order.realOrderId && (
                                 <button
                                   onClick={() =>
-                                    setSelectedOrderForReveal(order.orderId)
+                                    setSelectedOrderForReveal(index)
                                   }
                                   className="text-xs text-blue-400 hover:text-blue-300"
                                 >
@@ -644,14 +707,14 @@ const TradeTab: React.FC = () => {
                   !orderForm.amount ||
                   !orderForm.price ||
                   currentBatch.phase !== "COMMIT" ||
-                  submitOrderMutation.isPending ||
+                  isCommitPending ||
                   !address
                 }
               >
-                {submitOrderMutation.isPending ? (
+                {isCommitPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Submitting...
+                    Signing Transaction...
                   </>
                 ) : !address ? (
                   "Connect Wallet to Trade"
@@ -665,6 +728,75 @@ const TradeTab: React.FC = () => {
                 )}
               </button>
 
+              {/* Transaction Status */}
+              {commitHash && (
+                <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-green-400">
+                      Transaction Submitted
+                    </span>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() =>
+                          navigator.clipboard.writeText(commitHash)
+                        }
+                        className="text-green-400 hover:text-green-300"
+                        title="Copy transaction hash"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <a
+                        href={`https://explorer.testnet.citrea.xyz/tx/${commitHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-400 hover:text-green-300"
+                        title="View on explorer"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                  <p className="text-xs text-pool-muted mt-1">
+                    TX: {commitHash.slice(0, 10)}...{commitHash.slice(-8)}
+                  </p>
+                </div>
+              )}
+
+              {/* Commitment Data */}
+              {commitmentData && (
+                <div className="mt-4 p-3 bg-citrea-500/10 border border-citrea-500/20 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-citrea-400">
+                      Save Your Salt!
+                    </span>
+                    <button
+                      onClick={() =>
+                        navigator.clipboard.writeText(commitmentData.salt)
+                      }
+                      className="text-citrea-400 hover:text-citrea-300"
+                      title="Copy salt"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-pool-muted font-mono">
+                    Salt: {commitmentData.salt}
+                  </p>
+                  <p className="text-xs text-yellow-400 mt-1">
+                    ⚠️ You need this salt to reveal your order!
+                  </p>
+                </div>
+              )}
+
+              {/* Errors */}
+              {commitError && (
+                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <p className="text-sm text-red-400">
+                    Error: {commitError.message}
+                  </p>
+                </div>
+              )}
+
               {!address && (
                 <p className="text-sm text-yellow-400 text-center">
                   ⚠️ Connect your wallet to submit orders
@@ -676,12 +808,15 @@ const TradeTab: React.FC = () => {
       </div>
 
       {/* Reveal Order Modal */}
-      {selectedOrderForReveal && (
+      {selectedOrderForReveal !== null && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass-card p-6 max-w-md w-full">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-pool-text">
-                Reveal Order #{selectedOrderForReveal}
+                Reveal Order #
+                {userOrders[selectedOrderForReveal]?.realOrderId ||
+                  userOrders[selectedOrderForReveal]?.orderId ||
+                  "Pending"}
               </h3>
               <button
                 onClick={() => setSelectedOrderForReveal(null)}
@@ -694,18 +829,17 @@ const TradeTab: React.FC = () => {
             <form onSubmit={handleRevealOrder} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-pool-text mb-2">
-                  Salt (from order submission)
+                  Salt (saved from order submission)
                 </label>
                 <input
                   type="text"
-                  value={revealData.salt}
-                  onChange={(e) =>
-                    setRevealData({ ...revealData, salt: e.target.value })
-                  }
-                  placeholder="Enter salt from when you submitted the order"
-                  className="input-field w-full"
-                  required
+                  value={userOrders[selectedOrderForReveal]?.salt || ""}
+                  readOnly
+                  className="input-field w-full bg-pool-card/50"
                 />
+                <p className="text-xs text-green-400 mt-1">
+                  ✓ Salt automatically loaded from your order
+                </p>
               </div>
 
               <div>
@@ -713,15 +847,10 @@ const TradeTab: React.FC = () => {
                   Amount
                 </label>
                 <input
-                  type="number"
-                  step="any"
-                  value={revealData.amount}
-                  onChange={(e) =>
-                    setRevealData({ ...revealData, amount: e.target.value })
-                  }
-                  placeholder="Original amount"
-                  className="input-field w-full"
-                  required
+                  type="text"
+                  value={userOrders[selectedOrderForReveal]?.amount || ""}
+                  readOnly
+                  className="input-field w-full bg-pool-card/50"
                 />
               </div>
 
@@ -730,15 +859,10 @@ const TradeTab: React.FC = () => {
                   Price
                 </label>
                 <input
-                  type="number"
-                  step="any"
-                  value={revealData.price}
-                  onChange={(e) =>
-                    setRevealData({ ...revealData, price: e.target.value })
-                  }
-                  placeholder="Original price"
-                  className="input-field w-full"
-                  required
+                  type="text"
+                  value={userOrders[selectedOrderForReveal]?.price || ""}
+                  readOnly
+                  className="input-field w-full bg-pool-card/50"
                 />
               </div>
 
@@ -753,12 +877,12 @@ const TradeTab: React.FC = () => {
                 <button
                   type="submit"
                   className="flex-1 btn-citrea"
-                  disabled={revealOrderMutation.isPending}
+                  disabled={isRevealPending}
                 >
-                  {revealOrderMutation.isPending ? (
+                  {isRevealPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Revealing...
+                      Signing Transaction...
                     </>
                   ) : (
                     "Reveal Order"
@@ -767,10 +891,10 @@ const TradeTab: React.FC = () => {
               </div>
             </form>
 
-            <div className="mt-4 p-3 bg-blue-400/10 border border-blue-400/20 rounded-lg">
-              <p className="text-xs text-blue-400">
-                💡 Enter the exact same amount and price you used when
-                submitting the order, along with the salt that was provided.
+            <div className="mt-4 p-3 bg-green-400/10 border border-green-400/20 rounded-lg">
+              <p className="text-xs text-green-400">
+                ✓ All order details are automatically filled from your saved
+                order data.
               </p>
             </div>
           </div>

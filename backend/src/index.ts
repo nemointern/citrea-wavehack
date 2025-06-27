@@ -9,6 +9,11 @@ import BridgeService from "./services/bridgeService.js";
 import { CITREA_CONTRACTS } from "./config/contracts";
 import { Address } from "viem";
 
+// Fix BigInt serialization for JSON responses
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 // Load environment variables
 dotenv.config();
 
@@ -366,18 +371,35 @@ app.post("/api/darkpool/batch/process", async (req: any, res: any) => {
       const matchedAmounts = batchResult.matches.map((m) => m.matchedAmount);
       const executionPrices = batchResult.matches.map((m) => m.executionPrice);
 
-      const txHash = await citreaService.processDarkPoolBatch(
-        batchId,
-        buyOrderIds,
-        sellOrderIds,
-        matchedAmounts,
-        executionPrices
-      );
-
-      batchResult.txHash = txHash;
+      try {
+        const txHash = await citreaService.processDarkPoolBatch(
+          batchId,
+          buyOrderIds,
+          sellOrderIds,
+          matchedAmounts,
+          executionPrices
+        );
+        batchResult.txHash = txHash;
+      } catch (contractError) {
+        console.error(
+          "❌ Contract execution failed, but matching succeeded:",
+          contractError
+        );
+        // Continue with the successful matching result
+      }
     }
 
-    res.json(batchResult);
+    // Convert BigInt values to strings for JSON serialization
+    const serializedResult = {
+      ...batchResult,
+      matches: batchResult.matches.map((match) => ({
+        ...match,
+        matchedAmount: match.matchedAmount.toString(),
+        executionPrice: match.executionPrice.toString(),
+      })),
+    };
+
+    res.json(serializedResult);
   } catch (error) {
     res
       .status(500)
@@ -393,6 +415,31 @@ app.get("/api/darkpool/matching/stats", (req: any, res: any) => {
     res
       .status(500)
       .json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Create new batch endpoint
+app.post("/api/darkpool/batch/create", async (req: any, res: any) => {
+  try {
+    if (!citreaService) {
+      return res.status(503).json({
+        error: "Citrea service not available",
+      });
+    }
+
+    const txHash = await citreaService.createNewBatch();
+
+    res.json({
+      success: true,
+      message: "New batch created successfully",
+      txHash,
+      explorerUrl: `https://explorer.testnet.citrea.xyz/tx/${txHash}`,
+    });
+  } catch (error) {
+    console.error("❌ Error creating batch:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 
@@ -433,9 +480,42 @@ function generateSalt(): string {
 }
 
 function generateCommitHash(orderData: OrderSubmission, salt: string): string {
-  const dataStr = `${orderData.tokenA}-${orderData.tokenB}-${orderData.amount}-${orderData.price}-${orderData.orderType}-${salt}`;
-  // Simple hash for demo (in production, use proper cryptographic hash)
-  return Buffer.from(dataStr).toString("base64");
+  // Match the smart contract hash: keccak256(abi.encodePacked(amount, price, salt, orderType))
+  const { keccak256, encodePacked } = require("viem");
+
+  try {
+    // Convert values to proper types for abi.encodePacked
+    const amount = BigInt(parseFloat(orderData.amount) * 1e18);
+    const price = BigInt(parseFloat(orderData.price) * 1e18);
+    // Convert salt string to uint256
+    const saltBigInt = BigInt(
+      `0x${Buffer.from(salt).toString("hex").padStart(64, "0").slice(0, 64)}`
+    );
+    const orderType = orderData.orderType === "BUY" ? 0 : 1;
+
+    // Use encodePacked to match abi.encodePacked exactly
+    const packed = encodePacked(
+      ["uint256", "uint256", "uint256", "uint8"],
+      [amount, price, saltBigInt, orderType]
+    );
+
+    // Generate keccak256 hash
+    const hash = keccak256(packed);
+    console.log(
+      `📝 Generated commitment hash: ${hash} for ${orderData.orderType} ${orderData.amount} ${orderData.tokenA}`
+    );
+    return hash;
+  } catch (error) {
+    console.error("❌ Error generating commitment hash:", error);
+    // Fallback to simple hash
+    const dataStr = `${orderData.tokenA}-${orderData.tokenB}-${orderData.amount}-${orderData.price}-${orderData.orderType}-${salt}`;
+    const fallbackHash = `0x${Buffer.from(dataStr)
+      .toString("hex")
+      .padStart(64, "0")
+      .slice(0, 64)}`;
+    console.log(`📝 Using fallback hash: ${fallbackHash}`);
+    return fallbackHash;
+  }
 }
 
 app.post("/api/darkpool/order/submit", async (req: any, res: any) => {
@@ -450,15 +530,17 @@ app.post("/api/darkpool/order/submit", async (req: any, res: any) => {
       });
     }
 
-    // For demo purposes, always allow order submission
-    const currentBatch = {
-      batchId: 1,
-      phase: "COMMIT",
-    };
+    if (!citreaService) {
+      return res.status(503).json({
+        error: "Citrea service not available - smart contracts not deployed",
+      });
+    }
 
+    // Get current batch status from smart contract
+    const currentBatch = await citreaService.getCurrentBatch();
     console.log(`📋 Current batch phase: ${currentBatch.phase}`);
 
-    if (currentBatch.phase !== "COMMIT") {
+    if (currentBatch.phase !== "commit") {
       return res.status(400).json({
         error: "Orders can only be submitted during COMMIT phase",
         currentPhase: currentBatch.phase,
@@ -469,39 +551,79 @@ app.post("/api/darkpool/order/submit", async (req: any, res: any) => {
     const commitHash = generateCommitHash(orderData, salt);
     const trader = userAddress || `trader_${nextOrderId}`;
 
-    const newOrder: UserOrder = {
-      orderId: nextOrderId++,
-      batchId: currentBatch.batchId,
-      tokenA,
-      tokenB,
-      amount,
-      price,
-      orderType: orderType as "BUY" | "SELL",
-      status: "COMMITTED",
-      commitHash,
-      salt,
-      timestamp: Date.now(),
-      trader,
-    };
+    try {
+      // COMMIT ORDER ON-CHAIN (only need the commitment hash)
+      const { orderId, txHash } = await citreaService.commitOrder(commitHash);
 
-    // Store order
-    if (!userOrders.has(trader)) {
-      userOrders.set(trader, []);
+      // Store order locally for frontend tracking
+      const newOrder: UserOrder = {
+        orderId,
+        batchId: currentBatch.batchId,
+        tokenA,
+        tokenB,
+        amount,
+        price,
+        orderType: orderType as "BUY" | "SELL",
+        status: "COMMITTED",
+        commitHash,
+        salt,
+        timestamp: Date.now(),
+        trader,
+      };
+
+      if (!userOrders.has(trader)) {
+        userOrders.set(trader, []);
+      }
+      userOrders.get(trader)!.push(newOrder);
+
+      console.log(
+        `✅ Order submitted ON-CHAIN: ${orderId} (${orderType} ${amount} ${tokenA} for ${price} ${tokenB}) TX: ${txHash}`
+      );
+
+      res.json({
+        orderId,
+        batchId: currentBatch.batchId,
+        commitHash,
+        salt,
+        txHash,
+        success: true,
+        message: `Order ${orderId} committed successfully on-chain`,
+        explorerUrl: `https://explorer.testnet.citrea.xyz/tx/${txHash}`,
+      });
+    } catch (contractError) {
+      console.error("❌ Smart contract error:", contractError);
+
+      // Fallback to off-chain for demo if contract fails
+      const newOrder: UserOrder = {
+        orderId: nextOrderId++,
+        batchId: currentBatch.batchId || 1,
+        tokenA,
+        tokenB,
+        amount,
+        price,
+        orderType: orderType as "BUY" | "SELL",
+        status: "COMMITTED",
+        commitHash,
+        salt,
+        timestamp: Date.now(),
+        trader,
+      };
+
+      if (!userOrders.has(trader)) {
+        userOrders.set(trader, []);
+      }
+      userOrders.get(trader)!.push(newOrder);
+
+      res.json({
+        orderId: newOrder.orderId,
+        batchId: newOrder.batchId,
+        commitHash,
+        salt,
+        success: true,
+        message: `Order ${newOrder.orderId} committed (demo mode - contract unavailable)`,
+        warning: "Smart contract not available, using demo mode",
+      });
     }
-    userOrders.get(trader)!.push(newOrder);
-
-    console.log(
-      `📝 Order submitted: ${newOrder.orderId} (${orderType} ${amount} ${tokenA} for ${price} ${tokenB})`
-    );
-
-    res.json({
-      orderId: newOrder.orderId,
-      batchId: newOrder.batchId,
-      commitHash,
-      salt, // Return salt for reveal phase
-      success: true,
-      message: `Order ${newOrder.orderId} committed successfully`,
-    });
   } catch (error) {
     console.error("❌ Error submitting order:", error);
     res.status(500).json({
@@ -539,7 +661,7 @@ app.get("/api/darkpool/orders/user/:userAddress", (req: any, res: any) => {
   }
 });
 
-app.post("/api/darkpool/order/reveal", (req: any, res: any) => {
+app.post("/api/darkpool/order/reveal", async (req: any, res: any) => {
   try {
     const { orderId, salt, amount, price } = req.body;
 
@@ -590,17 +712,71 @@ app.post("/api/darkpool/order/reveal", (req: any, res: any) => {
       });
     }
 
-    // Update order status
-    foundOrder.status = "REVEALED";
+    if (citreaService) {
+      try {
+        // REVEAL ORDER ON-CHAIN
+        const tokenAAddress = citreaService.getTokenAddress(foundOrder.tokenA);
+        const tokenBAddress = citreaService.getTokenAddress(foundOrder.tokenB);
+        const amountWei = BigInt(parseFloat(amount) * 1e18);
+        const priceWei = BigInt(parseFloat(price) * 1e18);
+        // Convert salt to uint256 (same format as commitment hash generation)
+        const saltBigInt = BigInt(
+          `0x${Buffer.from(salt)
+            .toString("hex")
+            .padStart(64, "0")
+            .slice(0, 64)}`
+        );
+        const orderType = foundOrder.orderType === "BUY" ? 0 : 1;
 
-    console.log(
-      `🎭 Order revealed: ${orderId} (${foundOrder.orderType} ${amount} ${foundOrder.tokenA})`
-    );
+        const txHash = await citreaService.revealOrder(
+          orderId,
+          tokenAAddress,
+          tokenBAddress,
+          amountWei,
+          priceWei,
+          saltBigInt,
+          orderType
+        );
 
-    res.json({
-      success: true,
-      message: `Order ${orderId} revealed successfully`,
-    });
+        // Update order status
+        foundOrder.status = "REVEALED";
+
+        console.log(
+          `✅ Order revealed ON-CHAIN: ${orderId} (${foundOrder.orderType} ${amount} ${foundOrder.tokenA}) TX: ${txHash}`
+        );
+
+        res.json({
+          success: true,
+          message: `Order ${orderId} revealed successfully on-chain`,
+          txHash,
+          explorerUrl: `https://explorer.testnet.citrea.xyz/tx/${txHash}`,
+        });
+      } catch (contractError) {
+        console.error("❌ Smart contract reveal error:", contractError);
+
+        // Fallback to off-chain update
+        foundOrder.status = "REVEALED";
+
+        res.json({
+          success: true,
+          message: `Order ${orderId} revealed (demo mode - contract unavailable)`,
+          warning: "Smart contract not available, using demo mode",
+        });
+      }
+    } else {
+      // No smart contract service available
+      foundOrder.status = "REVEALED";
+
+      console.log(
+        `🎭 Order revealed (demo): ${orderId} (${foundOrder.orderType} ${amount} ${foundOrder.tokenA})`
+      );
+
+      res.json({
+        success: true,
+        message: `Order ${orderId} revealed successfully (demo mode)`,
+        warning: "Smart contract not available, using demo mode",
+      });
+    }
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : String(error),
