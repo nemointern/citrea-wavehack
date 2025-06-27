@@ -46,7 +46,7 @@ export class BTCMonitor extends EventEmitter {
     this.monitoredAddresses = new Set();
     this.lastProcessedBlock = 0;
     this.polling = false;
-    this.pollInterval = 30000; // 30 seconds
+    this.pollInterval = 60000; // 60 seconds (reduced frequency)
   }
 
   /**
@@ -104,16 +104,51 @@ export class BTCMonitor extends EventEmitter {
   }
 
   /**
-   * Get current Bitcoin block height
+   * Get current Bitcoin block height with retry logic
    */
   private async getCurrentBlockHeight(): Promise<number> {
-    try {
-      const response = await axios.get(`${this.apiUrl}/blocks/tip/height`);
-      return response.data;
-    } catch (error) {
-      console.error("Failed to get current block height:", error);
-      throw error;
+    const maxRetries = 3;
+    const baseDelay = 2000; // 2 seconds
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(
+          `📡 Fetching current block height (attempt ${
+            attempt + 1
+          }/${maxRetries})...`
+        );
+
+        const response = await axios.get(`${this.apiUrl}/blocks/tip/height`, {
+          timeout: 10000, // 10 second timeout
+          headers: {
+            "User-Agent": "CitreaDarkPool/1.0.0",
+          },
+        });
+
+        console.log(`✅ Current block height: ${response.data}`);
+        return response.data;
+      } catch (error) {
+        const isLastAttempt = attempt === maxRetries - 1;
+        const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+
+        console.error(
+          `❌ Failed to get current block height (attempt ${
+            attempt + 1
+          }/${maxRetries}):`,
+          error.message
+        );
+
+        if (isLastAttempt) {
+          console.error("🚨 All retry attempts failed for block height fetch");
+          throw error;
+        }
+
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await this.sleep(delay);
+      }
     }
+
+    throw new Error("Failed to get block height after all retries");
   }
 
   /**
@@ -148,6 +183,11 @@ export class BTCMonitor extends EventEmitter {
         blockHeight++
       ) {
         await this.processBlock(blockHeight);
+        // Add 2 second delay between block processing to avoid rate limiting
+        if (blockHeight < currentBlock) {
+          console.log("⏳ Waiting 2s before processing next block...");
+          await this.sleep(2000);
+        }
       }
 
       this.lastProcessedBlock = currentBlock;
@@ -175,11 +215,29 @@ export class BTCMonitor extends EventEmitter {
   }
 
   /**
-   * Get block hash by height
+   * Get block hash by height with retry logic
    */
   private async getBlockHash(height: number): Promise<string> {
-    const response = await axios.get(`${this.apiUrl}/block-height/${height}`);
-    return response.data;
+    const maxRetries = 2;
+    const baseDelay = 1500;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await this.sleep(500); // Brief delay before API call
+        const response = await axios.get(
+          `${this.apiUrl}/block-height/${height}`,
+          {
+            timeout: 8000,
+            headers: { "User-Agent": "CitreaDarkPool/1.0.0" },
+          }
+        );
+        return response.data;
+      } catch (error) {
+        if (attempt === maxRetries - 1) throw error;
+        await this.sleep(baseDelay * (attempt + 1));
+      }
+    }
+    throw new Error(`Failed to get block hash for height ${height}`);
   }
 
   /**

@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import BTCMonitor from "./services/btcMonitor";
 import MatchingEngine from "./services/matchingEngine";
 import CitreaService from "./services/citreaService";
+import BRC20Service from "./services/brc20Service.js";
+import BridgeService from "./services/bridgeService.js";
 import { CITREA_CONTRACTS } from "./config/contracts";
 import { Address } from "viem";
 
@@ -17,6 +19,8 @@ const PORT = process.env.PORT || 3001;
 let btcMonitor: BTCMonitor;
 let matchingEngine: MatchingEngine;
 let citreaService: CitreaService;
+let brc20Service: BRC20Service;
+let bridgeService: BridgeService;
 
 // Middleware
 app.use(cors());
@@ -46,6 +50,14 @@ app.get("/api/health", async (req: any, res: any) => {
       totalPairs: 0,
     };
     const citreaInfo = citreaService?.getChainInfo() || null;
+    const bridgeStatus = bridgeService?.getProcessingStatus() || {
+      isProcessing: false,
+      pendingRequests: 0,
+    };
+    const brc20Stats = brc20Service?.getDepositStats() || {
+      supportedTokens: ["PEPE", "ORDI", "CTRA"],
+      totalDeposits: 0,
+    };
 
     res.json({
       status: "healthy",
@@ -54,6 +66,8 @@ app.get("/api/health", async (req: any, res: any) => {
         btcMonitor: btcStatus,
         matchingEngine: matchingStats,
         citrea: citreaInfo,
+        bridge: bridgeStatus,
+        brc20: brc20Stats,
       },
     });
   } catch (error) {
@@ -129,6 +143,182 @@ app.get("/api/bridge/token/:ticker", async (req: any, res: any) => {
     res
       .status(500)
       .json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// New Bridge API endpoints
+app.post("/api/bridge/create", async (req: any, res: any) => {
+  try {
+    const { userId, ticker, toAddress } = req.body;
+
+    if (!userId || !ticker || !toAddress) {
+      return res.status(400).json({
+        error: "Missing required parameters: userId, ticker, toAddress",
+      });
+    }
+
+    if (!bridgeService) {
+      return res.status(503).json({ error: "Bridge service not initialized" });
+    }
+
+    const bridgeRequest = await bridgeService.createBridgeRequest(
+      userId,
+      ticker,
+      toAddress
+    );
+    res.json({
+      success: true,
+      ...bridgeRequest,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get("/api/bridge/request/:id", (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+
+    if (!bridgeService) {
+      return res.status(503).json({ error: "Bridge service not initialized" });
+    }
+
+    const request = bridgeService.getBridgeRequest(id);
+    if (!request) {
+      return res.status(404).json({ error: "Bridge request not found" });
+    }
+
+    res.json(request);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get("/api/bridge/user/:userId/requests", (req: any, res: any) => {
+  try {
+    const { userId } = req.params;
+
+    if (!bridgeService) {
+      return res.status(503).json({ error: "Bridge service not initialized" });
+    }
+
+    const requests = bridgeService.getUserBridgeRequests(userId);
+    res.json({ userId, requests });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get("/api/bridge/stats", (req: any, res: any) => {
+  try {
+    if (!bridgeService) {
+      return res.json({
+        totalRequests: 0,
+        completed: 0,
+        pending: 0,
+        failed: 0,
+        totalVolume: {},
+        message: "Bridge service not initialized - demo mode",
+      });
+    }
+
+    const stats = bridgeService.getBridgeStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get("/api/bridge/status", (req: any, res: any) => {
+  try {
+    if (!bridgeService) {
+      return res.json({
+        isProcessing: false,
+        lastUpdate: new Date().toISOString(),
+        pendingRequests: 0,
+        recentActivity: [],
+        message: "Bridge service not initialized",
+      });
+    }
+
+    const status = bridgeService.getProcessingStatus();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// BRC20 API endpoints
+app.get("/api/brc20/token/:ticker/info", async (req: any, res: any) => {
+  try {
+    const { ticker } = req.params;
+
+    if (!brc20Service) {
+      return res.status(503).json({ error: "BRC20 service not initialized" });
+    }
+
+    const tokenInfo = await brc20Service.getTokenInfo(ticker);
+    if (!tokenInfo) {
+      return res.status(404).json({ error: `Token ${ticker} not found` });
+    }
+
+    res.json(tokenInfo);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get("/api/brc20/address/:address/history", async (req: any, res: any) => {
+  try {
+    const { address } = req.params;
+    const { ticker } = req.query;
+
+    if (!brc20Service) {
+      return res.status(503).json({ error: "BRC20 service not initialized" });
+    }
+
+    const history = await brc20Service.getBRC20History(
+      address,
+      ticker as string
+    );
+    res.json({ address, ticker: ticker || "all", history });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get("/api/brc20/deposits/stats", (req: any, res: any) => {
+  try {
+    if (!brc20Service) {
+      return res.json({
+        totalDeposits: 0,
+        processedTransfers: 0,
+        pendingDeposits: 0,
+        supportedTokens: ["PEPE", "ORDI", "CTRA"],
+        message: "BRC20 service not initialized - demo mode",
+      });
+    }
+
+    const stats = brc20Service.getDepositStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 
@@ -274,6 +464,10 @@ async function initializeServices() {
     // Initialize Matching Engine
     matchingEngine = new MatchingEngine();
 
+    // Initialize BRC20 Service
+    brc20Service = new BRC20Service();
+    await brc20Service.createMockTokens(); // Create mock tokens for testing
+
     // Initialize Citrea Service (if private key is provided)
     if (process.env.PRIVATE_KEY) {
       citreaService = new CitreaService(
@@ -282,7 +476,16 @@ async function initializeServices() {
       );
     }
 
-    // Set up event listeners
+    // Initialize Bridge Service (requires both BRC20 and Citrea services)
+    if (brc20Service && citreaService) {
+      bridgeService = new BridgeService(brc20Service, citreaService);
+      await bridgeService.startProcessing();
+      console.log("🌉 Bridge service started");
+    } else {
+      console.log("⚠️ Bridge service not started - missing dependencies");
+    }
+
+    // Set up comprehensive event listeners
     btcMonitor.on("brc20Transfer", async (transfer) => {
       console.log("🎯 BRC20 Transfer detected:", transfer);
 
@@ -307,6 +510,29 @@ async function initializeServices() {
         `📊 Batch ${result.batchId} processed: ${result.totalMatches} matches`
       );
     });
+
+    // Bridge service event listeners
+    if (bridgeService) {
+      bridgeService.on("depositDetected", (event) => {
+        console.log(`💰 Bridge deposit detected: ${event.bridgeRequestId}`);
+        // Could trigger notifications here
+      });
+
+      bridgeService.on("bridgeCompleted", (event) => {
+        console.log(
+          `✅ Bridge completed: ${event.amount} ${event.ticker} → w${event.ticker}`
+        );
+        console.log(`📝 Citrea TX: ${event.citreaTxHash}`);
+        // Could trigger success notifications here
+      });
+
+      bridgeService.on("bridgeFailed", (event) => {
+        console.error(
+          `❌ Bridge failed: ${event.bridgeRequestId} - ${event.error}`
+        );
+        // Could trigger error notifications here
+      });
+    }
 
     // Start BTC monitoring
     await btcMonitor.startMonitoring();

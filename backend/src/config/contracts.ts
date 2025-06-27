@@ -7,6 +7,7 @@ export interface ContractAddresses {
   tokens: {
     wPEPE: Address;
     wORDI: Address;
+    wCTRA: Address;
   };
 }
 
@@ -18,6 +19,7 @@ export const CITREA_CONTRACTS: ContractAddresses = {
   tokens: {
     wPEPE: "0x8153c10105315581faed05236f18c73a81ff21db",
     wORDI: "0xdc572f9189f1d771e5c5c55be1095b187e102481",
+    wCTRA: "0x0e62a515FE7b3B07d3577DE0d863034ebd41f7BF",
   },
 };
 
@@ -25,6 +27,7 @@ export const CITREA_CONTRACTS: ContractAddresses = {
 export const TOKEN_ADDRESSES: Record<string, Address> = {
   pepe: CITREA_CONTRACTS.tokens.wPEPE,
   ordi: CITREA_CONTRACTS.tokens.wORDI,
+  ctra: CITREA_CONTRACTS.tokens.wCTRA,
   nusd: CITREA_CONTRACTS.nUSD,
 };
 
@@ -32,5 +35,6 @@ export const TOKEN_ADDRESSES: Record<string, Address> = {
 export const ADDRESS_TO_TOKEN: Record<string, string> = {
   [CITREA_CONTRACTS.tokens.wPEPE]: "wPEPE",
   [CITREA_CONTRACTS.tokens.wORDI]: "wORDI",
+  [CITREA_CONTRACTS.tokens.wCTRA]: "wCTRA",
   [CITREA_CONTRACTS.nUSD]: "nUSD",
 };
