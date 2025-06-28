@@ -2,7 +2,7 @@
 
 MEV-protected dark pool for BRC20 tokens on Citrea rollup with commit-reveal trading.
 
-### Due to CORS issues, our production build is not getting data from my api.
+### Due to CORS issues, our production build is not getting data from my api. Use Development.
 
 ## 🚀 Quick Start
 
@@ -48,17 +48,17 @@ forge script script/Deploy.s.sol --broadcast
 ### Core Contracts
 
 ```
-🌉 Bridge:    0x800D8509C063937487E991D0c71546De8bF9D906
-🎭 OrderBook: 0x653eF550EF46B58E168663131af2A0c304340913
-💰 nUSD:      0x9B28B690550522608890C3C7e63c0b4A7eBab9AA
+ Bridge:    0x800D8509C063937487E991D0c71546De8bF9D906
+ OrderBook: 0x653eF550EF46B58E168663131af2A0c304340913
+ nUSD:      0x9B28B690550522608890C3C7e63c0b4A7eBab9AA
 ```
 
 ### Wrapped Tokens
 
 ```
-🐸 wPEPE: 0x8153c10105315581FaeD05236F18c73A81ff21Db
-🔶 wORDI: 0xdc572f9189F1d771e5c5c55BE1095B187e102481
-🌙 wCTRA: 0x0e62a515FE7b3B07d3577DE0d863034ebd41f7BF
+ wPEPE: 0x8153c10105315581FaeD05236F18c73A81ff21Db
+ wORDI: 0xdc572f9189F1d771e5c5c55BE1095B187e102481
+ wCTRA: 0x0e62a515FE7b3B07d3577DE0d863034ebd41f7BF
 ```
 
 ## 🛠️ Environment Setup
@@ -75,7 +75,7 @@ No environment variables needed for development.
 
 ## 🌐 Live Demo
 
-- **Frontend**: https://legendary-druid-3f61b6.netlify.app
+- **Frontend**: https://nocturne-ivory.vercel.app/
 - **Backend**: https://nocturne-4coa.onrender.com
 
 ## 🎯 Features
