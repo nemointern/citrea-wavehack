@@ -1,7 +1,8 @@
 // API service for backend communication
 const API_BASE_URL =
   process.env.NODE_ENV === "production"
-    ? import.meta.env.VITE_API_BASE_URL
+    ? import.meta.env.VITE_API_BASE_URL ||
+      "https://nocturne-4coa.onrender.com/api"
     : "http://localhost:3001/api";
 
 // Types

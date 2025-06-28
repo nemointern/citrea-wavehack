@@ -32,8 +32,7 @@ const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
       ? [
-          "https://your-frontend-domain.vercel.app",
-          "https://nocturne.vercel.app",
+          "https://nocturne-ivory.vercel.app",
           /\.vercel\.app$/,
           /\.netlify\.app$/,
         ]
