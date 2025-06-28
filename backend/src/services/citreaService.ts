@@ -353,19 +353,22 @@ export class CitreaService {
       if (
         phase === "processing" &&
         timeRemaining === 0 &&
-        currentBatchId > this.lastProcessedBatch
+        currentBatchId >= this.lastProcessedBatch // Changed > to >= to handle batch 0
       ) {
         console.log(
           `🔄 Batch ${currentBatchId} completed! Auto-creating new batch...`
         );
-        this.lastProcessedBatch = currentBatchId;
+        this.lastProcessedBatch = currentBatchId + 1; // Set to next expected batch
 
         // Note: In production, you'd process matches first, then create new batch
         try {
-          await this.createNewBatch();
-          console.log("✅ New batch created automatically! Cycle continues...");
+          const txHash = await this.createNewBatch();
+          console.log(`✅ New batch created automatically! TX: ${txHash}`);
+          console.log("🔄 Batch cycle continues...");
         } catch (error) {
           console.error("❌ Failed to auto-create new batch:", error);
+          // Reset tracker so it can try again
+          this.lastProcessedBatch = currentBatchId;
         }
       }
 
