@@ -259,6 +259,24 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
         require(!buyOrder.executed && !sellOrder.executed, "Orders already executed");
         require(buyOrder.tokenA == sellOrder.tokenB && buyOrder.tokenB == sellOrder.tokenA, "Token mismatch");
         
+        // Calculate the amount of tokenB needed for the trade
+        uint256 tokenBAmount = (matchedAmount * executionPrice) / 1e18;
+        
+        // ACTUAL TOKEN TRANSFERS
+        // Transfer tokenA from seller to buyer
+        IERC20(sellOrder.tokenA).transferFrom(
+            sellOrder.trader,
+            buyOrder.trader,
+            matchedAmount
+        );
+        
+        // Transfer tokenB from buyer to seller
+        IERC20(buyOrder.tokenA).transferFrom(
+            buyOrder.trader,
+            sellOrder.trader,
+            tokenBAmount
+        );
+        
         // Mark as executed
         buyOrder.executed = true;
         sellOrder.executed = true;
@@ -320,5 +338,18 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
      */
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
+    }
+    
+    /**
+     * @dev Check if user has sufficient balance and approval for a token
+     * @param user User address
+     * @param token Token contract address
+     * @param amount Amount to check
+     * @return bool True if user has sufficient balance and approval
+     */
+    function checkTokenApproval(address user, address token, uint256 amount) external view returns (bool) {
+        IERC20 tokenContract = IERC20(token);
+        return tokenContract.balanceOf(user) >= amount && 
+               tokenContract.allowance(user, address(this)) >= amount;
     }
 } 

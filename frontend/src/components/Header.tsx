@@ -168,7 +168,9 @@ const Header: React.FC = () => {
                                       {chain.iconUrl && (
                                         <img
                                           alt={chain.name ?? "Chain icon"}
-                                          src={chain.iconUrl}
+                                          src={
+                                            chain.iconUrl || "/placeholder.svg"
+                                          }
                                           style={{ width: 12, height: 12 }}
                                         />
                                       )}

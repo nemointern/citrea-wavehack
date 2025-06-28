@@ -125,8 +125,18 @@ const MonitorTab: React.FC = () => {
                   Bitcoin Testnet
                 </h3>
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-green-400">Connected</span>
+                  <div
+                    className={`w-2 h-2 rounded-full animate-pulse ${
+                      btcStatus.connected ? "bg-green-400" : "bg-red-400"
+                    }`}
+                  ></div>
+                  <span
+                    className={`text-sm ${
+                      btcStatus.connected ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    {btcStatus.connected ? "Connected" : "Disconnected"}
+                  </span>
                 </div>
               </div>
             </div>

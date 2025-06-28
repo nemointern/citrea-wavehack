@@ -102,6 +102,7 @@ export class CitreaService {
       const fallbackAddresses: Record<string, Address> = {
         pepe: this.contracts.tokens.wPEPE,
         ordi: this.contracts.tokens.wORDI,
+        ctra: this.contracts.tokens.wCTRA,
       };
 
       if (fallbackAddresses[ticker.toLowerCase()]) {

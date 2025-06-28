@@ -4,8 +4,8 @@ import dotenv from "dotenv";
 import BTCMonitor from "./services/btcMonitor";
 import MatchingEngine from "./services/matchingEngine";
 import CitreaService from "./services/citreaService";
-import BRC20Service from "./services/brc20Service.js";
-import BridgeService from "./services/bridgeService.js";
+import BRC20Service from "./services/brc20Service";
+import BridgeService from "./services/bridgeService";
 import { CITREA_CONTRACTS } from "./config/contracts";
 import { Address } from "viem";
 

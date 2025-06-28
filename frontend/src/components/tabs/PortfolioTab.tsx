@@ -395,11 +395,7 @@ const PortfolioTab: React.FC = () => {
                 <p className="text-sm text-pool-muted">{balance.value}</p>
                 {balance.token === "cBTC" &&
                   cbtcBalance &&
-                  parseFloat(cbtcBalance.formatted) > 0 && (
-                    <p className="text-xs text-green-400 mt-1">
-                      ✓ Live balance
-                    </p>
-                  )}
+                  parseFloat(cbtcBalance.formatted) > 0}
               </div>
             </div>
           ))}
