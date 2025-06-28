@@ -164,3 +164,4 @@ contracts/broadcast/
 Icon?
 .directory
 .fuse_hidden*
+.vercel

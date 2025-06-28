@@ -1,5 +1,8 @@
 // API service for backend communication
-const API_BASE_URL = "http://localhost:3001/api";
+const API_BASE_URL =
+  process.env.NODE_ENV === "production"
+    ? import.meta.env.VITE_API_BASE_URL
+    : "http://localhost:3001/api";
 
 // Types
 export interface BTCMonitorStatus {

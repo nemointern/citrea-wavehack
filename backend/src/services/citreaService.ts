@@ -10,11 +10,10 @@ import { citreaTestnet } from "../config/citrea";
 import { ContractAddresses } from "../config/contracts";
 
 // Import ABIs
-import { abi as BRIDGE_ABI } from "../../../contracts/out/CitreaBridge.sol/CitreaBridge.json";
-import { abi as ORDERBOOK_ABI } from "../../../contracts/out/OrderBook.sol/OrderBook.json";
-import { abi as CitreaBridgeABI } from "../../../contracts/out/CitreaBridge.sol/CitreaBridge.json";
-import { abi as WRAPPED_BRC20_ABI } from "../../../contracts/out/WrappedBRC20.sol/WrappedBRC20.json";
-import { abi as ERC20_ABI } from "../../../contracts/out/ERC20.sol/ERC20.json";
+import { abi as BRIDGE_ABI } from "../abis/CitreaBridge.json";
+import { abi as ORDERBOOK_ABI } from "../abis/OrderBook.json";
+import { abi as WRAPPED_BRC20_ABI } from "../abis/WrappedBRC20.json";
+import { abi as ERC20_ABI } from "../abis/ERC20.json";
 
 export class CitreaService {
   private publicClient;

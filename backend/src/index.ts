@@ -27,8 +27,23 @@ let citreaService: CitreaService;
 let brc20Service: BRC20Service;
 let bridgeService: BridgeService;
 
+// CORS Configuration for Production
+const corsOptions = {
+  origin:
+    process.env.NODE_ENV === "production"
+      ? [
+          "https://your-frontend-domain.vercel.app",
+          "https://nocturne.vercel.app",
+          /\.vercel\.app$/,
+          /\.netlify\.app$/,
+        ]
+      : ["http://localhost:5173", "http://localhost:3000"],
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

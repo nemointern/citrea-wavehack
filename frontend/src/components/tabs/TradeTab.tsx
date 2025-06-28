@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import {
   Clock,
@@ -29,23 +29,18 @@ interface OrderFormData {
 
 const TradeTab: React.FC = () => {
   const { address } = useAccount();
-  const queryClient = useQueryClient();
 
   // Wallet-based order book hook
   const {
     commitOrder,
     revealOrder,
     commitmentData,
-    currentBatch: smartContractBatch,
     userOrders: walletOrders,
     isCommitPending,
     isRevealPending,
     commitHash,
-    revealHash,
     commitError,
-    revealError,
     refreshOrderId,
-    refreshOrderStatuses,
   } = useOrderBook();
 
   // Form state
@@ -61,81 +56,16 @@ const TradeTab: React.FC = () => {
   const [selectedOrderForReveal, setSelectedOrderForReveal] = useState<
     number | null
   >(null);
-  const [revealData, setRevealData] = useState({
-    salt: "",
-    amount: "",
-    price: "",
-  });
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "info";
     message: string;
   } | null>(null);
-
-  // Store completed orders for reveal
-  const [completedOrders, setCompletedOrders] = useState<
-    Array<{
-      orderId: number;
-      salt: string;
-      orderData: OrderFormData;
-      txHash: string;
-    }>
-  >([]);
 
   // Real-time data queries
   const { data: currentBatchData, isLoading: batchLoading } = useQuery({
     queryKey: ["current-batch"],
     queryFn: apiService.getCurrentBatch,
     refetchInterval: 5000,
-  });
-
-  const { data: userOrdersData } = useQuery({
-    queryKey: ["user-orders", address],
-    queryFn: () =>
-      address
-        ? apiService.getUserOrders(address)
-        : Promise.resolve({ orders: [], count: 0 }),
-    enabled: !!address,
-    refetchInterval: 3000,
-  });
-
-  // Mutations
-  const submitOrderMutation = useMutation({
-    mutationFn: apiService.submitOrder,
-    onSuccess: (data) => {
-      setNotification({
-        type: "success",
-        message: `Order ${data.orderId} committed successfully! Save your salt: ${data.salt}`,
-      });
-      // Reset form
-      setOrderForm({ ...orderForm, amount: "", price: "" });
-      // Refetch orders
-      queryClient.invalidateQueries({ queryKey: ["user-orders"] });
-    },
-    onError: (error: Error) => {
-      setNotification({
-        type: "error",
-        message: `Failed to submit order: ${error.message}`,
-      });
-    },
-  });
-
-  const revealOrderMutation = useMutation({
-    mutationFn: apiService.revealOrder,
-    onSuccess: () => {
-      setNotification({
-        type: "success",
-        message: "Order revealed successfully!",
-      });
-      setSelectedOrderForReveal(null);
-      setRevealData({ salt: "", amount: "", price: "" });
-      queryClient.invalidateQueries({ queryKey: ["user-orders"] });
-    },
-    onError: (error: Error) => {
-      setNotification({
-        type: "error",
-        message: `Failed to reveal order: ${error.message}`,
-      });
-    },
   });
 
   const cancelOrderMutation = useMutation({
@@ -145,7 +75,6 @@ const TradeTab: React.FC = () => {
         type: "success",
         message: "Order cancelled successfully!",
       });
-      queryClient.invalidateQueries({ queryKey: ["user-orders"] });
     },
     onError: (error: Error) => {
       setNotification({
@@ -230,10 +159,12 @@ const TradeTab: React.FC = () => {
 
       // Reset form
       setOrderForm({ ...orderForm, amount: "", price: "" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: `Failed to commit order: ${error.message}`,
+        message: `Failed to commit order: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
       });
     }
   };
@@ -272,27 +203,11 @@ const TradeTab: React.FC = () => {
       });
 
       setSelectedOrderForReveal(null);
-      setRevealData({ salt: "", amount: "", price: "" });
     } catch (error: any) {
       setNotification({
         type: "error",
         message: `Failed to reveal order: ${error.message}`,
       });
-    }
-  };
-
-  const getOrderStatusColor = (status: string) => {
-    switch (status) {
-      case "COMMITTED":
-        return "text-yellow-400";
-      case "REVEALED":
-        return "text-blue-400";
-      case "MATCHED":
-        return "text-green-400";
-      case "FAILED":
-        return "text-red-400";
-      default:
-        return "text-pool-muted";
     }
   };
 
@@ -640,7 +555,7 @@ const TradeTab: React.FC = () => {
                                 onClick={() =>
                                   Number(order.batchId) ===
                                     Number(currentBatch.id) &&
-                                  cancelOrderMutation.mutate(order.orderId)
+                                  cancelOrderMutation.mutate(order.orderId || 0)
                                 }
                                 className={`text-xs transition-colors ${
                                   Number(order.batchId) ===
@@ -655,7 +570,7 @@ const TradeTab: React.FC = () => {
                                 }
                                 title={
                                   Number(order.batchId) !==
-                                  Number(currentBatch.id)
+                                  Number(currentBatch.id || 0)
                                     ? "Cannot cancel orders from previous batches"
                                     : "Cancel order"
                                 }
