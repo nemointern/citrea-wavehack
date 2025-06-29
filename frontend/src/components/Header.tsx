@@ -24,9 +24,7 @@ const Header: React.FC = () => {
           {/* Enhanced Logo */}
           <div className="flex items-center space-x-4">
             <div>
-              <h1 className="text-xl font-bold text-gradient">
-                Citrea Dark Pool
-              </h1>
+              <h1 className="text-xl font-bold text-gradient">Nocturne</h1>
             </div>
           </div>
 

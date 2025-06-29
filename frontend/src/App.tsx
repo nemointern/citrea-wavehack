@@ -105,7 +105,7 @@ function App() {
           <div className="text-center mb-12 animate-fade-in">
             {/* Main Title */}
             <h1 className="text-5xl font-extrabold text-gradient mb-4">
-              Citrea Dark Pool
+              Nocturne
             </h1>
             <p className="text-xl text-pool-muted mb-2 font-medium">
               BRC20 Bridge + MEV-Protected Trading
