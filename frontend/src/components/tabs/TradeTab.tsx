@@ -18,6 +18,12 @@ import {
 } from "lucide-react";
 import { apiService } from "../../services/api";
 import { useOrderBook } from "../../hooks/useOrderBook";
+import {
+  useTokenApprovals,
+  type TokenSymbol,
+} from "../../hooks/useTokenApprovals";
+import ApprovalButton from "../ApprovalButton";
+import ApprovalStatus from "../ApprovalStatus";
 
 interface OrderFormData {
   tokenA: string;
@@ -42,6 +48,9 @@ const TradeTab: React.FC = () => {
     commitError,
     refreshOrderId,
   } = useOrderBook();
+
+  // Token approvals hook
+  const { hasApproval, hasBalance } = useTokenApprovals();
 
   // Form state
   const [orderForm, setOrderForm] = useState<OrderFormData>({
@@ -148,6 +157,43 @@ const TradeTab: React.FC = () => {
       return;
     }
 
+    // Check token approvals based on order type
+    const tokenASymbol = orderForm.tokenA as TokenSymbol;
+    const tokenBSymbol = orderForm.tokenB as TokenSymbol;
+
+    // For BUY orders: user needs tokenB approved (they're buying tokenA with tokenB)
+    // For SELL orders: user needs tokenA approved (they're selling tokenA for tokenB)
+    let requiredToken: TokenSymbol;
+    let requiredAmount: string;
+
+    if (orderForm.orderType === "BUY") {
+      requiredToken = tokenBSymbol;
+      requiredAmount = (
+        parseFloat(orderForm.amount) * parseFloat(orderForm.price)
+      ).toString();
+    } else {
+      requiredToken = tokenASymbol;
+      requiredAmount = orderForm.amount;
+    }
+
+    // Check if user has sufficient balance
+    if (!hasBalance(requiredToken, requiredAmount)) {
+      setNotification({
+        type: "error",
+        message: `Insufficient ${requiredToken} balance`,
+      });
+      return;
+    }
+
+    // Check if token is approved
+    if (!hasApproval(requiredToken, requiredAmount)) {
+      setNotification({
+        type: "error",
+        message: `Please approve ${requiredToken} for trading first`,
+      });
+      return;
+    }
+
     try {
       // Call smart contract directly with user's wallet
       const result = await commitOrder(orderForm);
@@ -203,10 +249,12 @@ const TradeTab: React.FC = () => {
       });
 
       setSelectedOrderForReveal(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setNotification({
         type: "error",
-        message: `Failed to reveal order: ${error.message}`,
+        message: `Failed to reveal order: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
       });
     }
   };
@@ -750,6 +798,58 @@ const TradeTab: React.FC = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-pool-muted">Batch</span>
                     <span className="text-pool-text">#{currentBatch.id}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Token Approvals */}
+              {orderForm.amount && orderForm.price && address && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-pool-text">
+                    Token Approvals
+                  </h4>
+                  <div className="space-y-3">
+                    {orderForm.orderType === "BUY" ? (
+                      // For BUY orders, user needs tokenB approved
+                      <div className="flex items-center justify-between p-3 bg-pool-card/50 border border-pool-border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <ApprovalStatus
+                            token={orderForm.tokenB as TokenSymbol}
+                            requiredAmount={(
+                              parseFloat(orderForm.amount) *
+                              parseFloat(orderForm.price)
+                            ).toString()}
+                            compact
+                          />
+                        </div>
+                        <ApprovalButton
+                          token={orderForm.tokenB as TokenSymbol}
+                          amount={(
+                            parseFloat(orderForm.amount) *
+                            parseFloat(orderForm.price)
+                          ).toString()}
+                          size="sm"
+                          variant="secondary"
+                        />
+                      </div>
+                    ) : (
+                      // For SELL orders, user needs tokenA approved
+                      <div className="flex items-center justify-between p-3 bg-pool-card/50 border border-pool-border rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <ApprovalStatus
+                            token={orderForm.tokenA as TokenSymbol}
+                            requiredAmount={orderForm.amount}
+                            compact
+                          />
+                        </div>
+                        <ApprovalButton
+                          token={orderForm.tokenA as TokenSymbol}
+                          amount={orderForm.amount}
+                          size="sm"
+                          variant="secondary"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

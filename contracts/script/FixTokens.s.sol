@@ -7,8 +7,8 @@ import "../src/bridge/CitreaBridge.sol";
 contract FixTokens is Script {
     // Existing deployed token addresses
     address constant EXISTING_WPEPE = 0x8153c10105315581FaeD05236F18c73A81ff21Db;
-    address constant EXISTING_WORDI = 0xdc572f9189F1d771e5C5c55BE1095B187E102481;
-    address constant EXISTING_ORDERBOOK = 0x887102733A08332d572BfF84262ffa80fFDd81fF;
+    address constant EXISTING_WORDI = 0xDc572f9189F1d771e5C5c55BE1095B187e102481;
+    address constant EXISTING_ORDERBOOK = 0x653eF550EF46B58E168663131af2A0c304340913;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");

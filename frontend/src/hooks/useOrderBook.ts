@@ -8,17 +8,13 @@ import {
   usePublicClient,
 } from "wagmi";
 import { keccak256, encodePacked, parseEther, decodeEventLog } from "viem";
-
-const ORDERBOOK_ADDRESS = "0x887102733A08332d572BfF84262ffa80fFDd81fF" as const;
 import { abi as ORDERBOOK_ABI } from "../../../contracts/out/OrderBook.sol/OrderBook.json";
+import { getOrderBookAddress, getAllTokenAddresses } from "../config/addresses";
 
-// Token addresses
-const TOKEN_ADDRESSES = {
-  wPEPE: "0x8153c10105315581FaeD05236F18c73A81ff21Db",
-  wORDI: "0xdc572f9189F1d771e5C5c55BE1095B187e102481",
-  wCTRA: "0x0e62a515FE7b3B07d3577DE0d863034ebd41f7BF",
-  nUSD: "0x9B28B690550522608890C3C7e63c0b4A7eBab9AA",
-} as const;
+const ORDERBOOK_ADDRESS = getOrderBookAddress();
+
+// Token addresses from centralized config
+const TOKEN_ADDRESSES = getAllTokenAddresses();
 
 interface OrderData {
   tokenA: string;

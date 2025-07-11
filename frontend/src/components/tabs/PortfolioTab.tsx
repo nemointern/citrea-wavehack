@@ -10,10 +10,17 @@ import {
 } from "lucide-react";
 import { apiService } from "../../services/api";
 import { decodeEventLog } from "viem";
+import {
+  useTokenApprovals,
+  type TokenSymbol,
+} from "../../hooks/useTokenApprovals";
+import ApprovalButton from "../ApprovalButton";
+import ApprovalStatus from "../ApprovalStatus";
+import { getOrderBookAddress, getBridgeAddress } from "../../config/addresses";
 
-// Contract addresses and ABIs
-const ORDERBOOK_ADDRESS = "0x887102733A08332d572BfF84262ffa80fFDd81fF" as const;
-const BRIDGE_ADDRESS = "0x800D8509C063937487E991D0c71546De8bF9D906" as const;
+// Contract addresses from centralized config
+const ORDERBOOK_ADDRESS = getOrderBookAddress();
+const BRIDGE_ADDRESS = getBridgeAddress();
 import { abi as ORDERBOOK_ABI } from "../../../../contracts/out/OrderBook.sol/OrderBook.json";
 import { abi as BRIDGE_ABI } from "../../../../contracts/out/CitreaBridge.sol/CitreaBridge.json";
 
@@ -32,6 +39,14 @@ const PortfolioTab: React.FC = () => {
   // Real wallet address from wagmi
   const { address, isConnected } = useAccount();
   const publicClient = usePublicClient();
+
+  // Token approvals hook
+  const {
+    approvalStates,
+    formatAllowance,
+    revokeApproval,
+    refreshAllApprovals,
+  } = useTokenApprovals();
 
   // State for onchain transactions
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -399,6 +414,91 @@ const PortfolioTab: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Token Approvals Management */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-pool-text">
+            Token Approvals
+          </h3>
+          <button
+            onClick={refreshAllApprovals}
+            className="flex items-center space-x-2 px-3 py-2 bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 rounded-lg transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(["wPEPE", "wORDI", "wCTRA", "nUSD"] as TokenSymbol[]).map(
+            (token) => (
+              <div key={token} className="glass-card p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-citrea-500 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">
+                        {token.charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-pool-text">{token}</h4>
+                      <p className="text-xs text-pool-muted">
+                        Trading Approval
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-mono text-pool-text">
+                      {formatAllowance(token)}
+                    </p>
+                    <p className="text-xs text-pool-muted">Allowance</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <ApprovalStatus token={token} compact />
+
+                  <div className="flex space-x-2">
+                    <ApprovalButton
+                      token={token}
+                      size="sm"
+                      variant="secondary"
+                    />
+                    {approvalStates[token].isApproved && (
+                      <button
+                        onClick={() => revokeApproval(token)}
+                        className="px-3 py-1.5 text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="mt-4 p-4 bg-citrea-500/5 border border-citrea-500/20 rounded-lg">
+          <div className="flex items-start space-x-3">
+            <div className="w-6 h-6 bg-citrea-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs text-citrea-400">ℹ</span>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-pool-text mb-1">
+                About Token Approvals
+              </h4>
+              <p className="text-xs text-pool-muted leading-relaxed">
+                Token approvals allow the Dark Pool contract to move your tokens
+                when orders are matched. You can approve exact amounts for each
+                trade or unlimited amounts for gas efficiency. Revoke approvals
+                anytime for security.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

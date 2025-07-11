@@ -7,11 +7,11 @@ import "../src/darkpool/OrderBook.sol";
 import "../src/tokens/WrappedBRC20.sol";
 
 contract Configure is Script {
-    // Deployed contract addresses
-    address constant BRIDGE_ADDRESS = 0x036A6AB2D15918B5F35C6BC78905b53763d01220;
-    address constant ORDERBOOK_ADDRESS = 0x887102733A08332d572BfF84262ffa80fFDd81fF;
+    // Deployed contract addresses - Update these in frontend/src/config/addresses.ts
+    address constant BRIDGE_ADDRESS = 0x800D8509C063937487E991D0c71546De8bF9D906;
+    address constant ORDERBOOK_ADDRESS = 0x653eF550EF46B58E168663131af2A0c304340913;
     address constant WPEPE_ADDRESS = 0x8153c10105315581FaeD05236F18c73A81ff21Db;
-    address constant WORDI_ADDRESS = 0xdc572f9189F1d771e5C5c55BE1095B187E102481;
+    address constant WORDI_ADDRESS = 0xDc572f9189F1d771e5C5c55BE1095B187e102481;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
