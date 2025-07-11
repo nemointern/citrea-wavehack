@@ -1,9 +1,7 @@
 // API service for backend communication
-const API_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? import.meta.env.VITE_API_BASE_URL ||
-      "https://nocturne-4coa.onrender.com/api"
-    : "http://localhost:3001/api";
+import { API_BASE_URL as BASE_URL } from "../config/api";
+
+const API_BASE_URL = `${BASE_URL}/api`;
 
 // Types
 export interface BTCMonitorStatus {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
+import { API_BASE_URL } from "../../config/api";
 import {
   ArrowRight,
   Copy,
@@ -46,7 +47,7 @@ const BridgeTab: React.FC = () => {
   const { data: bridgeStats } = useQuery({
     queryKey: ["bridge-stats"],
     queryFn: () =>
-      fetch("http://localhost:3001/api/bridge/stats").then((r) => r.json()),
+      fetch(`${API_BASE_URL}/api/bridge/stats`).then((r) => r.json()),
     refetchInterval: 5000,
   });
 
@@ -54,7 +55,7 @@ const BridgeTab: React.FC = () => {
   const { data: bridgeStatus } = useQuery({
     queryKey: ["bridge-status"],
     queryFn: () =>
-      fetch("http://localhost:3001/api/bridge/status").then((r) => r.json()),
+      fetch(`${API_BASE_URL}/api/bridge/status`).then((r) => r.json()),
     refetchInterval: 3000,
   });
 
@@ -64,7 +65,7 @@ const BridgeTab: React.FC = () => {
     queryFn: () =>
       walletAddress
         ? fetch(
-            `http://localhost:3001/api/bridge/user/${walletAddress}/requests`
+            `${API_BASE_URL}/api/bridge/user/${walletAddress}/requests`
           ).then((r) => r.json())
         : Promise.resolve({ requests: [] }),
     enabled: !!walletAddress,
@@ -78,7 +79,7 @@ const BridgeTab: React.FC = () => {
       ticker: string;
       toAddress: string;
     }) => {
-      const response = await fetch("http://localhost:3001/api/bridge/create", {
+      const response = await fetch(`${API_BASE_URL}/api/bridge/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

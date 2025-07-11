@@ -5,15 +5,18 @@
  * Update the BACKEND_URL.
  */
 
-// Update this URL after deploying your backend to AWS
-let PRODUCTION_BACKEND_URL;
+// Update this URL with your AWS backend URL after deployment
+const PRODUCTION_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const DEVELOPMENT_BACKEND_URL = "http://localhost:3001";
 
-export const API_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? PRODUCTION_BACKEND_URL
-    : DEVELOPMENT_BACKEND_URL;
+// Temporarily force AWS backend for testing
+export const API_BASE_URL = import.meta.env.PROD
+  ? PRODUCTION_BACKEND_URL
+  : DEVELOPMENT_BACKEND_URL;
 
+console.log("API_BASE_URL", API_BASE_URL);
+console.log("Vite PROD mode:", import.meta.env.PROD);
+console.log("Vite DEV mode:", import.meta.env.DEV);
 // API endpoints
 export const API_ENDPOINTS = {
   // Health check
