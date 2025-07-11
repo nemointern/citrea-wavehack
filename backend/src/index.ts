@@ -28,17 +28,40 @@ let brc20Service: BRC20Service;
 let bridgeService: BridgeService;
 
 // CORS Configuration for Production
+const getAllowedOrigins = () => {
+  if (process.env.NODE_ENV === "production") {
+    const origins = [
+      "https://nocturne-ivory.vercel.app",
+      /\.vercel\.app$/,
+      /\.netlify\.app$/,
+    ];
+
+    // Add custom origins from environment variable
+    if (process.env.ALLOWED_ORIGINS) {
+      const customOrigins = process.env.ALLOWED_ORIGINS.split(",");
+      origins.push(...customOrigins);
+    }
+
+    return origins;
+  }
+
+  return ["http://localhost:5173", "http://localhost:3000"];
+};
+
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [
-          "https://nocturne-ivory.vercel.app",
-          /\.vercel\.app$/,
-          /\.netlify\.app$/,
-        ]
-      : ["http://localhost:5173", "http://localhost:3000"],
+  origin: getAllowedOrigins(),
   credentials: true,
   optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Origin",
+    "X-Requested-With",
+    "Content-Type",
+    "Accept",
+    "Authorization",
+    "Cache-Control",
+    "X-Cache-Date",
+  ],
 };
 
 // Middleware
