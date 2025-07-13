@@ -2,7 +2,11 @@
 
 MEV-protected dark pool for BRC20 tokens on Citrea rollup with commit-reveal trading.
 
-### Due to CORS issues, our production build is not getting data from my api. Use Development.
+## 🌐 **Live Demo**
+
+- **🚀 Frontend**: https://nocturne-ivory.vercel.app/
+- **⚡ Backend API**: https://3.71.41.71/api/health
+- **📚 API Documentation**: https://3.71.41.71/api-docs
 
 ## 🚀 Quick Start
 
@@ -57,7 +61,6 @@ forge script script/Deploy.s.sol --broadcast
 
 ```
  wPEPE: 0x8153c10105315581FaeD05236F18c73A81ff21Db
- wORDI: 0xDc572f9189F1d771e5C5c55BE1095B187e102481
  wCTRA: 0x0e62a515FE7b3B07d3577DE0d863034ebd41f7BF
 ```
 
@@ -73,10 +76,17 @@ PRIVATE_KEY=your_private_key_here
 
 No environment variables needed for development.
 
-## 🌐 Live Demo
+## 🔗 API Endpoints
 
-- **Frontend**: https://nocturne-ivory.vercel.app/
-- **Backend**: https://nocturne-4coa.onrender.com
+All API endpoints are documented with Swagger at: **https://3.71.41.71/api-docs**
+
+Key endpoints:
+
+- **Health Check**: `GET http://3.71.41.71:3001/api/health`
+- **Dark Pool Stats**: `GET http://3.71.41.71:3001/api/darkpool/matching/stats`
+- **Submit Order**: `POST http://3.71.41.71:3001/api/darkpool/order/submit`
+- **BRC20 Info**: `GET http://3.71.41.71:3001/api/brc20/token/{ticker}/info`
+- **Bridge Stats**: `GET http://3.71.41.71:3001/api/bridge/stats`
 
 ## 🎯 Features
 
@@ -85,5 +95,8 @@ No environment variables needed for development.
 - ✅ Commit-reveal trading
 - ✅ Real-time Bitcoin monitoring
 - ✅ Verified smart contracts
+- ✅ Comprehensive API documentation (Swagger)
+- ✅ Rate-limited external API calls
+- ✅ Docker containerized deployment
 
 Built for Citrea Wave Hackathon 🏄‍♂️
