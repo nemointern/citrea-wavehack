@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger";
 import BTCMonitor from "./services/btcMonitor";
 import MatchingEngine from "./services/matchingEngine";
 import CitreaService from "./services/citreaService";
@@ -8,6 +10,7 @@ import BRC20Service from "./services/brc20Service";
 import BridgeService from "./services/bridgeService";
 import { CITREA_CONTRACTS } from "./config/contracts";
 import { Address } from "viem";
+import { setupSwagger } from "./swagger-setup";
 
 // Fix BigInt serialization for JSON responses
 (BigInt.prototype as any).toJSON = function () {
@@ -69,7 +72,38 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+setupSwagger(app);
+
 // Routes
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: Get API status and information
+ *     tags: [Health]
+ *     description: Returns basic information about the API and its features
+ *     responses:
+ *       200:
+ *         description: API information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Citrea Wave Hackathon Backend API"
+ *                 status:
+ *                   type: string
+ *                   example: "running"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 features:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ */
 app.get("/", (req: any, res: any) => {
   res.json({
     message: "Citrea Wave Hackathon Backend API",
@@ -80,9 +114,57 @@ app.get("/", (req: any, res: any) => {
       "Dark Pool Matching Engine",
       "Citrea Smart Contract Integration",
     ],
+    documentation: "/api-docs",
   });
 });
 
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Get system health status
+ *     tags: [Health]
+ *     description: Returns comprehensive health status of all system services
+ *     responses:
+ *       200:
+ *         description: System health information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "healthy"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 services:
+ *                   type: object
+ *                   properties:
+ *                     btcMonitor:
+ *                       type: object
+ *                       properties:
+ *                         isRunning:
+ *                           type: boolean
+ *                         currentBlock:
+ *                           type: integer
+ *                     matchingEngine:
+ *                       $ref: '#/components/schemas/MatchingStats'
+ *                     citrea:
+ *                       type: object
+ *                     bridge:
+ *                       type: object
+ *                       properties:
+ *                         isProcessing:
+ *                           type: boolean
+ *                         pendingRequests:
+ *                           type: integer
+ *                     brc20:
+ *                       $ref: '#/components/schemas/BRC20Stats'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/health", async (req: any, res: any) => {
   try {
     const btcStatus = btcMonitor
@@ -390,6 +472,99 @@ app.get("/api/darkpool/batch/current", async (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/darkpool/batch/process:
+ *   post:
+ *     summary: Process a batch of revealed orders
+ *     tags: [Batches]
+ *     description: Execute matching algorithm on revealed orders and submit results to blockchain
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [batchId, orders]
+ *             properties:
+ *               batchId:
+ *                 type: integer
+ *                 description: Batch identifier
+ *                 example: 17
+ *               orders:
+ *                 type: array
+ *                 description: Array of revealed orders to match
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     orderId:
+ *                       type: integer
+ *                       example: 123
+ *                     trader:
+ *                       type: string
+ *                       example: "0x123..."
+ *                     tokenA:
+ *                       type: string
+ *                       example: "PEPE"
+ *                     tokenB:
+ *                       type: string
+ *                       example: "nUSD"
+ *                     amount:
+ *                       type: string
+ *                       example: "1000000000000000000000"
+ *                     price:
+ *                       type: string
+ *                       example: "1200000000000000"
+ *                     orderType:
+ *                       type: string
+ *                       enum: [BUY, SELL]
+ *                     batchId:
+ *                       type: integer
+ *                       example: 17
+ *                     timestamp:
+ *                       type: integer
+ *                       example: 1752403325000
+ *     responses:
+ *       200:
+ *         description: Batch processing results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 batchId:
+ *                   type: integer
+ *                   example: 17
+ *                 totalOrders:
+ *                   type: integer
+ *                   example: 5
+ *                 totalMatches:
+ *                   type: integer
+ *                   example: 2
+ *                 totalVolume:
+ *                   type: string
+ *                   example: "500000000000000000000"
+ *                 matches:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       buyOrderId:
+ *                         type: integer
+ *                       sellOrderId:
+ *                         type: integer
+ *                       matchedAmount:
+ *                         type: string
+ *                       executionPrice:
+ *                         type: string
+ *                 txHash:
+ *                   type: string
+ *                   description: Blockchain transaction hash (if executed)
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.post("/api/darkpool/batch/process", async (req: any, res: any) => {
   try {
     const { batchId, orders } = req.body;
@@ -454,6 +629,23 @@ app.post("/api/darkpool/batch/process", async (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/darkpool/matching/stats:
+ *   get:
+ *     summary: Get dark pool matching engine statistics
+ *     tags: [Dark Pool]
+ *     description: Returns comprehensive statistics about the matching engine performance
+ *     responses:
+ *       200:
+ *         description: Matching engine statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MatchingStats'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/darkpool/matching/stats", (req: any, res: any) => {
   try {
     const stats = matchingEngine.getMatchingStats();
@@ -466,6 +658,48 @@ app.get("/api/darkpool/matching/stats", (req: any, res: any) => {
 });
 
 // Create new batch endpoint
+/**
+ * @swagger
+ * /api/darkpool/batch/create:
+ *   post:
+ *     summary: Create a new dark pool batch
+ *     tags: [Batches]
+ *     description: Creates a new batch on the blockchain for order submissions
+ *     responses:
+ *       200:
+ *         description: Batch created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "New batch created successfully"
+ *                 txHash:
+ *                   type: string
+ *                   description: Transaction hash
+ *                   example: "0xabc123..."
+ *                 explorerUrl:
+ *                   type: string
+ *                   description: Block explorer URL
+ *                   example: "https://explorer.testnet.citrea.xyz/tx/0xabc123..."
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ *       503:
+ *         description: Service unavailable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Citrea service not available"
+ */
 app.post("/api/darkpool/batch/create", async (req: any, res: any) => {
   try {
     if (!citreaService) {
@@ -565,6 +799,77 @@ function generateCommitHash(orderData: OrderSubmission, salt: string): string {
   }
 }
 
+/**
+ * @swagger
+ * /api/darkpool/order/submit:
+ *   post:
+ *     summary: Submit a new order to the dark pool
+ *     tags: [Orders]
+ *     description: Submit an order commitment to the current batch (only during COMMIT phase)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Order'
+ *     responses:
+ *       200:
+ *         description: Order submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 orderId:
+ *                   type: integer
+ *                   description: Generated order ID
+ *                   example: 123
+ *                 batchId:
+ *                   type: integer
+ *                   description: Current batch ID
+ *                   example: 17
+ *                 commitHash:
+ *                   type: string
+ *                   description: Order commitment hash
+ *                   example: "0xdef456..."
+ *                 salt:
+ *                   type: string
+ *                   description: Salt for revealing later
+ *                   example: "random_salt_123"
+ *                 txHash:
+ *                   type: string
+ *                   description: Blockchain transaction hash
+ *                   example: "0xabc123..."
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Order 123 committed successfully on-chain"
+ *                 explorerUrl:
+ *                   type: string
+ *                   description: Block explorer URL
+ *                   example: "https://explorer.testnet.citrea.xyz/tx/0xabc123..."
+ *       400:
+ *         description: Bad request - missing parameters or wrong phase
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Orders can only be submitted during COMMIT phase"
+ *                 currentPhase:
+ *                   type: string
+ *                   example: "reveal"
+ *       503:
+ *         description: Service unavailable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 app.post("/api/darkpool/order/submit", async (req: any, res: any) => {
   try {
     const orderData: OrderSubmission = req.body;
