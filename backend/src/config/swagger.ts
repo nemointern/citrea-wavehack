@@ -4,10 +4,10 @@ import { SwaggerDefinition } from "swagger-jsdoc";
 const swaggerDefinition: SwaggerDefinition = {
   openapi: "3.0.0",
   info: {
-    title: "Citrea Dark Pool API",
+    title: "Nocturne Dark Pool API",
     version: "1.0.0",
     description:
-      "API documentation for Citrea Dark Pool Trading System with BRC20 bridging",
+      "API documentation for Nocturne Dark Pool Trading System with BRC20 bridging",
     license: {
       name: "MIT",
       url: "https://opensource.org/licenses/MIT",

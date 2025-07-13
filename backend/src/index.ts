@@ -258,6 +258,38 @@ app.post("/api/bridge/mint", async (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/bridge/token/{ticker}:
+ *   get:
+ *     summary: Get wrapped token address
+ *     tags: [Bridge]
+ *     description: Returns the Citrea address of a wrapped BRC20 token
+ *     parameters:
+ *       - in: path
+ *         name: ticker
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: BRC20 token ticker symbol
+ *         example: "PEPE"
+ *     responses:
+ *       200:
+ *         description: Wrapped token address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ticker:
+ *                   type: string
+ *                   example: "PEPE"
+ *                 tokenAddress:
+ *                   type: string
+ *                   example: "0x123...abc"
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/bridge/token/:ticker", async (req: any, res: any) => {
   try {
     const { ticker } = req.params;
@@ -271,6 +303,64 @@ app.get("/api/bridge/token/:ticker", async (req: any, res: any) => {
 });
 
 // New Bridge API endpoints
+/**
+ * @swagger
+ * /api/bridge/create:
+ *   post:
+ *     summary: Create a new bridge request
+ *     tags: [Bridge]
+ *     description: Creates a new cross-chain bridge request for BRC20 tokens
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [userId, ticker, toAddress]
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: User identifier
+ *                 example: "user123"
+ *               ticker:
+ *                 type: string
+ *                 description: BRC20 token ticker
+ *                 example: "PEPE"
+ *               toAddress:
+ *                 type: string
+ *                 description: Destination address on target chain
+ *                 example: "0x123...abc"
+ *     responses:
+ *       200:
+ *         description: Bridge request created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 id:
+ *                   type: string
+ *                   description: Bridge request ID
+ *                 depositAddress:
+ *                   type: string
+ *                   description: Bitcoin address for deposits
+ *                 status:
+ *                   type: string
+ *                   example: "pending"
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       503:
+ *         description: Bridge service not initialized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.post("/api/bridge/create", async (req: any, res: any) => {
   try {
     const { userId, ticker, toAddress } = req.body;
@@ -339,6 +429,52 @@ app.get("/api/bridge/user/:userId/requests", (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/bridge/stats:
+ *   get:
+ *     summary: Get bridge statistics
+ *     tags: [Bridge]
+ *     description: Returns comprehensive statistics about bridge operations
+ *     responses:
+ *       200:
+ *         description: Bridge statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalRequests:
+ *                   type: integer
+ *                   description: Total number of bridge requests
+ *                   example: 150
+ *                 completed:
+ *                   type: integer
+ *                   description: Number of completed bridge requests
+ *                   example: 145
+ *                 pending:
+ *                   type: integer
+ *                   description: Number of pending bridge requests
+ *                   example: 3
+ *                 failed:
+ *                   type: integer
+ *                   description: Number of failed bridge requests
+ *                   example: 2
+ *                 totalVolume:
+ *                   type: object
+ *                   description: Total volume bridged by token
+ *                   additionalProperties:
+ *                     type: string
+ *                   example:
+ *                     PEPE: "1000000000000000000000"
+ *                     CTRA: "500000000000000000000"
+ *                 message:
+ *                   type: string
+ *                   description: Status message
+ *                   example: "Bridge service running normally"
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/bridge/stats", (req: any, res: any) => {
   try {
     if (!bridgeService) {
@@ -361,6 +497,45 @@ app.get("/api/bridge/stats", (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/bridge/status:
+ *   get:
+ *     summary: Get bridge processing status
+ *     tags: [Bridge]
+ *     description: Returns current status of the cross-chain bridge processing
+ *     responses:
+ *       200:
+ *         description: Bridge processing status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 isProcessing:
+ *                   type: boolean
+ *                   description: Whether bridge is currently processing requests
+ *                   example: true
+ *                 lastUpdate:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last processing update timestamp
+ *                 pendingRequests:
+ *                   type: integer
+ *                   description: Number of pending bridge requests
+ *                   example: 5
+ *                 recentActivity:
+ *                   type: array
+ *                   description: Recent bridge activities
+ *                   items:
+ *                     type: object
+ *                 message:
+ *                   type: string
+ *                   description: Status message
+ *                   example: "Bridge service running normally"
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/bridge/status", (req: any, res: any) => {
   try {
     if (!bridgeService) {
@@ -383,6 +558,66 @@ app.get("/api/bridge/status", (req: any, res: any) => {
 });
 
 // BRC20 API endpoints
+/**
+ * @swagger
+ * /api/brc20/token/{ticker}/info:
+ *   get:
+ *     summary: Get BRC20 token information
+ *     tags: [BRC20]
+ *     description: Returns detailed information about a specific BRC20 token
+ *     parameters:
+ *       - in: path
+ *         name: ticker
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: BRC20 token ticker symbol
+ *         example: "PEPE"
+ *     responses:
+ *       200:
+ *         description: BRC20 token information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ticker:
+ *                   type: string
+ *                   example: "PEPE"
+ *                 totalSupply:
+ *                   type: string
+ *                   example: "420690000000000"
+ *                 decimals:
+ *                   type: string
+ *                   example: "18"
+ *                 deployBy:
+ *                   type: string
+ *                   example: "0x123..."
+ *                 deployTime:
+ *                   type: integer
+ *                   example: 1640995200
+ *                 holders:
+ *                   type: integer
+ *                   example: 1337
+ *       404:
+ *         description: Token not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Token PEPE not found"
+ *       503:
+ *         description: BRC20 service not initialized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/brc20/token/:ticker/info", async (req: any, res: any) => {
   try {
     const { ticker } = req.params;
@@ -404,6 +639,69 @@ app.get("/api/brc20/token/:ticker/info", async (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/brc20/address/{address}/history:
+ *   get:
+ *     summary: Get BRC20 transaction history for an address
+ *     tags: [BRC20]
+ *     description: Returns BRC20 transaction history for a specific address, optionally filtered by ticker
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Bitcoin address to query
+ *         example: "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+ *       - in: query
+ *         name: ticker
+ *         schema:
+ *           type: string
+ *         description: Optional BRC20 token ticker to filter by
+ *         example: "PEPE"
+ *     responses:
+ *       200:
+ *         description: BRC20 transaction history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 address:
+ *                   type: string
+ *                   example: "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+ *                 ticker:
+ *                   type: string
+ *                   example: "PEPE"
+ *                 history:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       txid:
+ *                         type: string
+ *                       blockHeight:
+ *                         type: integer
+ *                       ticker:
+ *                         type: string
+ *                       amount:
+ *                         type: string
+ *                       from:
+ *                         type: string
+ *                       to:
+ *                         type: string
+ *                       timestamp:
+ *                         type: integer
+ *       503:
+ *         description: BRC20 service not initialized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/brc20/address/:address/history", async (req: any, res: any) => {
   try {
     const { address } = req.params;
@@ -425,6 +723,23 @@ app.get("/api/brc20/address/:address/history", async (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/brc20/deposits/stats:
+ *   get:
+ *     summary: Get BRC20 deposit statistics
+ *     tags: [BRC20]
+ *     description: Returns statistics about BRC20 deposits and supported tokens
+ *     responses:
+ *       200:
+ *         description: BRC20 deposit statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/BRC20Stats'
+ *       500:
+ *         $ref: '#/components/responses/InternalError'
+ */
 app.get("/api/brc20/deposits/stats", (req: any, res: any) => {
   try {
     if (!brc20Service) {
