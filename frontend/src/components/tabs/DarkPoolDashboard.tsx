@@ -45,34 +45,16 @@ const DarkPoolDashboard: React.FC = () => {
       volume24h: 150000,
     },
     {
-      pair: "wORDI/nUSD",
-      price: 50.0,
-      change24h: -2.1,
-      volume24h: 75000,
-    },
-    {
       pair: "wCTRA/nUSD",
       price: 0.01,
       change24h: 12.5,
       volume24h: 250000,
     },
     {
-      pair: "wPEPE/wORDI",
-      price: 0.00002,
-      change24h: 7.8,
-      volume24h: 50000,
-    },
-    {
       pair: "wCTRA/wPEPE",
       price: 10,
       change24h: 3.1,
       volume24h: 80000,
-    },
-    {
-      pair: "wCTRA/wORDI",
-      price: 0.0002,
-      change24h: -1.5,
-      volume24h: 30000,
     },
   ];
 

@@ -246,7 +246,7 @@ export class BRC20Service {
       totalDeposits: this.depositAddresses.size,
       processedTransfers: this.processedTransfers.size,
       pendingDeposits: this.depositAddresses.size,
-      supportedTokens: ["PEPE", "ORDI", "CTRA"], // Mock tokens + your custom CTRA
+      supportedTokens: ["PEPE", "CTRA"], // Mock tokens + your custom CTRA
     };
   }
 
@@ -265,19 +265,13 @@ export class BRC20Service {
   async createMockTokens(): Promise<void> {
     console.log("🎭 Creating mock BRC20 tokens for testing...");
 
-    // For demo purposes, we'll simulate having PEPE, ORDI, and your custom CTRA tokens
+    // For demo purposes, we'll simulate having PEPE and your custom CTRA tokens
     const mockTokens = [
       {
         ticker: "PEPE",
         totalSupply: "420690000000000",
         decimals: "18",
         holders: 1337,
-      },
-      {
-        ticker: "ORDI",
-        totalSupply: "21000000000000",
-        decimals: "18",
-        holders: 2100,
       },
       {
         ticker: "CTRA",

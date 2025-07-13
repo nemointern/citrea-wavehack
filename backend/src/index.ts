@@ -97,7 +97,7 @@ app.get("/api/health", async (req: any, res: any) => {
       pendingRequests: 0,
     };
     const brc20Stats = brc20Service?.getDepositStats() || {
-      supportedTokens: ["PEPE", "ORDI", "CTRA"],
+      supportedTokens: ["PEPE", "CTRA"],
       totalDeposits: 0,
     };
 
@@ -350,7 +350,7 @@ app.get("/api/brc20/deposits/stats", (req: any, res: any) => {
         totalDeposits: 0,
         processedTransfers: 0,
         pendingDeposits: 0,
-        supportedTokens: ["PEPE", "ORDI", "CTRA"],
+        supportedTokens: ["PEPE", "CTRA"],
         message: "BRC20 service not initialized - demo mode",
       });
     }

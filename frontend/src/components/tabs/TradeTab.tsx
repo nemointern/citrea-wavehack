@@ -697,7 +697,6 @@ const TradeTab: React.FC = () => {
                     className="input-field w-full"
                   >
                     <option value="wPEPE">wPEPE</option>
-                    <option value="wORDI">wORDI</option>
                     <option value="wCTRA">wCTRA</option>
                     <option value="nUSD">nUSD</option>
                   </select>
@@ -724,7 +723,6 @@ const TradeTab: React.FC = () => {
                   >
                     <option value="nUSD">nUSD</option>
                     <option value="wPEPE">wPEPE</option>
-                    <option value="wORDI">wORDI</option>
                     <option value="wCTRA">wCTRA</option>
                   </select>
                 </div>

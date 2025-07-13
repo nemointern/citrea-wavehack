@@ -48,19 +48,13 @@ export class MatchingEngine extends EventEmitter {
   private initializeMockPrices(): void {
     // Mock prices (scaled by 1e18)
     this.priceFeeds.set("PEPE/nUSD", 1000000000000000n); // 0.001 nUSD per PEPE
-    this.priceFeeds.set("ORDI/nUSD", 50000000000000000000n); // 50 nUSD per ORDI
     this.priceFeeds.set("CTRA/nUSD", 10000000000000000n); // 0.01 nUSD per CTRA
     this.priceFeeds.set("nUSD/PEPE", 1000000000000000000000n); // 1000 PEPE per nUSD
-    this.priceFeeds.set("nUSD/ORDI", 20000000000000000n); // 0.02 ORDI per nUSD
     this.priceFeeds.set("nUSD/CTRA", 100000000000000000000n); // 100 CTRA per nUSD
 
     // Cross pairs for advanced trading
-    this.priceFeeds.set("PEPE/ORDI", 20000000000000n); // 0.00002 ORDI per PEPE
-    this.priceFeeds.set("ORDI/PEPE", 50000000000000000000000n); // 50000 PEPE per ORDI
     this.priceFeeds.set("PEPE/CTRA", 100000000000000n); // 0.0001 CTRA per PEPE
     this.priceFeeds.set("CTRA/PEPE", 10000000000000000000000n); // 10000 PEPE per CTRA
-    this.priceFeeds.set("ORDI/CTRA", 5000000000000000000000n); // 5000 CTRA per ORDI
-    this.priceFeeds.set("CTRA/ORDI", 200000000000000n); // 0.0002 ORDI per CTRA
   }
 
   /**
