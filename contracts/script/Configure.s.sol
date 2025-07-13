@@ -11,7 +11,7 @@ contract Configure is Script {
     address constant BRIDGE_ADDRESS = 0x800D8509C063937487E991D0c71546De8bF9D906;
     address constant ORDERBOOK_ADDRESS = 0x653eF550EF46B58E168663131af2A0c304340913;
     address constant WPEPE_ADDRESS = 0x8153c10105315581FaeD05236F18c73A81ff21Db;
-    address constant WORDI_ADDRESS = 0xDc572f9189F1d771e5C5c55BE1095B187e102481;
+    // address constant WORDI_ADDRESS = 0xdc572f9189F1d771e5C5c55BE1095B187E102481; // Removed wORDI
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -32,13 +32,13 @@ contract Configure is Script {
         bridge.setWrappedToken("wPEPE", WPEPE_ADDRESS);
         
         // Set up wORDI mapping (case-insensitive)
-        bridge.setWrappedToken("ordi", WORDI_ADDRESS);
-        bridge.setWrappedToken("ORDI", WORDI_ADDRESS);
-        bridge.setWrappedToken("wORDI", WORDI_ADDRESS);
+        // bridge.setWrappedToken("ordi", WORDI_ADDRESS);
+        // bridge.setWrappedToken("ORDI", WORDI_ADDRESS);
+        // bridge.setWrappedToken("wORDI", WORDI_ADDRESS); // Removed wORDI
         
         console.log("Token mappings configured:");
         console.log("- pepe/PEPE/wPEPE ->", WPEPE_ADDRESS);
-        console.log("- ordi/ORDI/wORDI ->", WORDI_ADDRESS);
+        // console.log("- ordi/ORDI/wORDI ->", WORDI_ADDRESS); // Removed wORDI
         
         // Check OrderBook current batch
         console.log("\n=== Checking OrderBook ===");

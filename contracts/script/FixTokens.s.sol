@@ -7,7 +7,7 @@ import "../src/bridge/CitreaBridge.sol";
 contract FixTokens is Script {
     // Existing deployed token addresses
     address constant EXISTING_WPEPE = 0x8153c10105315581FaeD05236F18c73A81ff21Db;
-    address constant EXISTING_WORDI = 0xDc572f9189F1d771e5C5c55BE1095B187e102481;
+    // address constant EXISTING_WORDI = 0xDc572f9189F1d771e5C5c55BE1095B187e102481; // Removed wORDI
     address constant EXISTING_ORDERBOOK = 0x653eF550EF46B58E168663131af2A0c304340913;
 
     function run() external {
@@ -30,22 +30,22 @@ contract FixTokens is Script {
         newBridge.setWrappedToken("PEPE", EXISTING_WPEPE);
         newBridge.setWrappedToken("wPEPE", EXISTING_WPEPE);
         
-        newBridge.setWrappedToken("ordi", EXISTING_WORDI);
-        newBridge.setWrappedToken("ORDI", EXISTING_WORDI);
-        newBridge.setWrappedToken("wORDI", EXISTING_WORDI);
+        // newBridge.setWrappedToken("ordi", EXISTING_WORDI);
+        // newBridge.setWrappedToken("ORDI", EXISTING_WORDI);
+        // newBridge.setWrappedToken("wORDI", EXISTING_WORDI); // Removed wORDI
         
         console.log("Token associations complete:");
         console.log("- pepe/PEPE/wPEPE ->", EXISTING_WPEPE);
-        console.log("- ordi/ORDI/wORDI ->", EXISTING_WORDI);
+        // console.log("- ordi/ORDI/wORDI ->", EXISTING_WORDI); // Removed wORDI
         
         // Grant bridge role to new bridge on existing tokens
         console.log("\n=== Granting bridge roles ===");
         WrappedBRC20 wpepe = WrappedBRC20(EXISTING_WPEPE);
-        WrappedBRC20 wordi = WrappedBRC20(EXISTING_WORDI);
+        // WrappedBRC20 wordi = WrappedBRC20(EXISTING_WORDI); // Removed wORDI
         
         bytes32 bridgeRole = wpepe.BRIDGE_ROLE();
         wpepe.grantRole(bridgeRole, address(newBridge));
-        wordi.grantRole(bridgeRole, address(newBridge));
+        // wordi.grantRole(bridgeRole, address(newBridge)); // Removed wORDI
         
         console.log("Bridge roles granted to new bridge");
         
@@ -56,6 +56,6 @@ contract FixTokens is Script {
         console.log("NEW_BRIDGE_ADDRESS =", address(newBridge));
         console.log("ORDERBOOK_ADDRESS =", EXISTING_ORDERBOOK, "(unchanged)");
         console.log("WPEPE_ADDRESS =", EXISTING_WPEPE, "(unchanged)");
-        console.log("WORDI_ADDRESS =", EXISTING_WORDI, "(unchanged)");
+        // console.log("WORDI_ADDRESS =", EXISTING_WORDI, "(unchanged)"); // Removed wORDI
     }
 } 
