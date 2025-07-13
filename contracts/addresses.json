@@ -2,13 +2,13 @@
   "network": "citrea-testnet",
   "chainId": 5115,
   "contracts": {
-    "bridge": "0x800D8509C063937487E991D0c71546De8bF9D906",
-    "orderBook": "0x653eF550EF46B58E168663131af2A0c304340913",
+    "bridge": "0x75F9fBB2d498BC123fb6a4c1CF68c7Afb413e2d2",
+    "orderBook": "0xc5F2c636EedAEe186643792C7626f94f6F38dBf0",
     "nUSD": "0x9B28B690550522608890C3C7e63c0b4A7eBab9AA",
     "tokens": {
-      "wPEPE": "0x8153c10105315581FaeD05236F18c73A81ff21Db",
-      "wORDI": "0xDc572f9189F1d771e5C5c55BE1095B187e102481"
+      "wPEPE": "0x7CF5e5D861Ea3046C52643e32b8af1fA3398eD94",
+      "wORDI": "0x0A36C8FB0c7a63Bc4822790622e48302f1CB568b"
     }
   },
-  "deployedAt": "1750899922"
+  "deployedAt": "1750975687"
 }
