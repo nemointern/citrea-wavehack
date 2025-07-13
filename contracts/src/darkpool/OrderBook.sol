@@ -29,13 +29,14 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
         address trader;
         address tokenA; // Token being sold
         address tokenB; // Token being bought
-        uint256 amount;
+        uint256 amount; // Original order amount
+        uint256 filledAmount; // Amount already filled
         uint256 price; // Price in tokenB per tokenA (scaled by 1e18)
         uint256 salt;
         OrderType orderType;
         uint256 orderId;
         uint256 batchId;
-        bool executed;
+        bool executed; // True when order is fully executed
     }
     
     struct Batch {
@@ -141,6 +142,7 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
             tokenA: tokenA,
             tokenB: tokenB,
             amount: amount,
+            filledAmount: 0,
             price: price,
             salt: salt,
             orderType: orderType,
@@ -153,11 +155,11 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
     }
     
     /**
-     * @dev Process a batch (called by matcher)
+     * @dev Process a batch (called by matcher) - supports partial fills
      * @param batchId Batch to process
-     * @param buyOrderIds Array of buy order IDs to match
-     * @param sellOrderIds Array of sell order IDs to match
-     * @param matchedAmounts Array of matched amounts
+     * @param buyOrderIds Array of buy order IDs to match (can contain duplicates for partial fills)
+     * @param sellOrderIds Array of sell order IDs to match (can contain duplicates for partial fills)
+     * @param matchedAmounts Array of matched amounts (must not exceed remaining amounts)
      * @param executionPrices Array of execution prices
      */
     function processBatch(
@@ -243,7 +245,7 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
     }
     
     /**
-     * @dev Execute a match between buy and sell orders
+     * @dev Execute a match between buy and sell orders (supports partial fills)
      */
     function _executeMatch(
         uint256 buyOrderId,
@@ -256,8 +258,15 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
         
         require(buyOrder.orderType == OrderType.BUY, "Invalid buy order");
         require(sellOrder.orderType == OrderType.SELL, "Invalid sell order");
-        require(!buyOrder.executed && !sellOrder.executed, "Orders already executed");
+        require(!buyOrder.executed && !sellOrder.executed, "Orders already fully executed");
         require(buyOrder.tokenA == sellOrder.tokenB && buyOrder.tokenB == sellOrder.tokenA, "Token mismatch");
+        
+        // Validate partial fill amounts
+        uint256 buyRemainingAmount = buyOrder.amount - buyOrder.filledAmount;
+        uint256 sellRemainingAmount = sellOrder.amount - sellOrder.filledAmount;
+        require(matchedAmount > 0, "Matched amount must be greater than 0");
+        require(matchedAmount <= buyRemainingAmount, "Matched amount exceeds buy order remaining");
+        require(matchedAmount <= sellRemainingAmount, "Matched amount exceeds sell order remaining");
         
         // Calculate the amount of tokenB needed for the trade
         uint256 tokenBAmount = (matchedAmount * executionPrice) / 1e18;
@@ -277,13 +286,19 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
             tokenBAmount
         );
         
-        // Mark as executed
-        buyOrder.executed = true;
-        sellOrder.executed = true;
+        // Update filled amounts
+        buyOrder.filledAmount += matchedAmount;
+        sellOrder.filledAmount += matchedAmount;
         
-        // Update order statuses
-        committedOrders[buyOrderId].status = OrderStatus.MATCHED;
-        committedOrders[sellOrderId].status = OrderStatus.MATCHED;
+        // Mark as fully executed if completely filled
+        if (buyOrder.filledAmount >= buyOrder.amount) {
+            buyOrder.executed = true;
+            committedOrders[buyOrderId].status = OrderStatus.MATCHED;
+        }
+        if (sellOrder.filledAmount >= sellOrder.amount) {
+            sellOrder.executed = true;
+            committedOrders[sellOrderId].status = OrderStatus.MATCHED;
+        }
         
         emit OrderMatched(buyOrderId, sellOrderId, matchedAmount, executionPrice);
     }
@@ -324,6 +339,81 @@ contract OrderBook is AccessControl, Pausable, ReentrancyGuard {
      */
     function getBatchOrderIds(uint256 batchId) external view returns (uint256[] memory) {
         return batches[batchId].orderIds;
+    }
+    
+    // ==================== PARTIAL FILL UTILITY FUNCTIONS ====================
+    
+    /**
+     * @dev Get the remaining amount for an order
+     * @param orderId Order ID to check
+     * @return uint256 Remaining amount that can be filled
+     */
+    function getRemainingAmount(uint256 orderId) external view returns (uint256) {
+        RevealedOrder storage order = revealedOrders[orderId];
+        if (order.amount == 0) return 0; // Order doesn't exist or not revealed
+        return order.amount - order.filledAmount;
+    }
+    
+    /**
+     * @dev Get the filled amount for an order
+     * @param orderId Order ID to check
+     * @return uint256 Amount already filled
+     */
+    function getFilledAmount(uint256 orderId) external view returns (uint256) {
+        return revealedOrders[orderId].filledAmount;
+    }
+    
+    /**
+     * @dev Check if an order is partially filled
+     * @param orderId Order ID to check
+     * @return bool True if order has some fills but is not fully executed
+     */
+    function isPartiallyFilled(uint256 orderId) external view returns (bool) {
+        RevealedOrder storage order = revealedOrders[orderId];
+        return order.filledAmount > 0 && !order.executed;
+    }
+    
+    /**
+     * @dev Check if an order is fully executed
+     * @param orderId Order ID to check
+     * @return bool True if order is completely filled
+     */
+    function isFullyExecuted(uint256 orderId) external view returns (bool) {
+        return revealedOrders[orderId].executed;
+    }
+    
+    /**
+     * @dev Get the fill percentage for an order
+     * @param orderId Order ID to check
+     * @return uint256 Fill percentage (0-100, scaled by 1e2 for precision)
+     */
+    function getFillPercentage(uint256 orderId) external view returns (uint256) {
+        RevealedOrder storage order = revealedOrders[orderId];
+        if (order.amount == 0) return 0;
+        return (order.filledAmount * 10000) / order.amount; // Return basis points (0-10000)
+    }
+    
+    /**
+     * @dev Get comprehensive order fill info
+     * @param orderId Order ID to check
+     * @return originalAmount Original order amount
+     * @return filledAmount Amount already filled
+     * @return remainingAmount Amount remaining to be filled
+     * @return executed Whether order is fully executed
+     */
+    function getOrderFillInfo(uint256 orderId) external view returns (
+        uint256 originalAmount,
+        uint256 filledAmount,
+        uint256 remainingAmount,
+        bool executed
+    ) {
+        RevealedOrder storage order = revealedOrders[orderId];
+        return (
+            order.amount,
+            order.filledAmount,
+            order.amount - order.filledAmount,
+            order.executed
+        );
     }
     
     /**

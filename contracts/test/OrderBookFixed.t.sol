@@ -648,6 +648,255 @@ contract OrderBookFixedTest is Test {
 
         console.log("Order execution edge cases verified!");
     }
+
+    /// @dev Test basic partial fill functionality
+    function testBasicPartialFills() public {
+        console.log("Testing Basic Partial Fills");
+
+        // Setup: approve tokens
+        vm.prank(alice);
+        wPEPE.approve(address(orderBook), TRADE_AMOUNT);
+        
+        vm.prank(bob);
+        nUSD.approve(address(orderBook), TRADE_AMOUNT * PRICE_1000_USD / 1e18);
+
+        // Calculate amounts for orders
+        uint256 bobNUSDAmount = TRADE_AMOUNT * PRICE_1000_USD / 1e18;
+
+        // Commit and reveal orders
+        vm.prank(alice);
+        orderBook.commitOrder(keccak256(abi.encodePacked(TRADE_AMOUNT, PRICE_1000_USD, uint256(11111), uint8(1))));
+        uint256 aliceOrderId = nextOrderId++;
+
+        vm.prank(bob);
+        orderBook.commitOrder(keccak256(abi.encodePacked(bobNUSDAmount, uint256(1e18), uint256(22222), uint8(0))));
+        uint256 bobOrderId = nextOrderId++;
+
+        // Move to reveal phase and reveal orders
+        vm.warp(block.timestamp + 301);
+        
+        vm.prank(alice);
+        orderBook.revealOrder(aliceOrderId, address(wPEPE), address(nUSD), TRADE_AMOUNT, PRICE_1000_USD, 11111, OrderBook.OrderType.SELL);
+        
+        vm.prank(bob);
+        orderBook.revealOrder(bobOrderId, address(nUSD), address(wPEPE), bobNUSDAmount, uint256(1e18), 22222, OrderBook.OrderType.BUY);
+
+        // Move to processing phase
+        vm.warp(block.timestamp + 181);
+        orderBook.createNewBatch();
+
+        // Execute partial fill (50% of order)
+        uint256 partialAmount = TRADE_AMOUNT / 2;
+        uint256[] memory buyOrderIds = new uint256[](1);
+        uint256[] memory sellOrderIds = new uint256[](1);
+        uint256[] memory matchedAmounts = new uint256[](1);
+        uint256[] memory executionPrices = new uint256[](1);
+
+        buyOrderIds[0] = bobOrderId;
+        sellOrderIds[0] = aliceOrderId;
+        matchedAmounts[0] = partialAmount;
+        executionPrices[0] = PRICE_1000_USD;
+
+        vm.prank(matcher);
+        orderBook.processBatch(0, buyOrderIds, sellOrderIds, matchedAmounts, executionPrices);
+
+        // Verify partial fill state
+        assertEq(orderBook.getFilledAmount(aliceOrderId), partialAmount, "Alice order should be 50% filled");
+        assertEq(orderBook.getRemainingAmount(aliceOrderId), TRADE_AMOUNT - partialAmount, "Alice order should have 50% remaining");
+        assertTrue(orderBook.isPartiallyFilled(aliceOrderId), "Alice order should be partially filled");
+        assertFalse(orderBook.isFullyExecuted(aliceOrderId), "Alice order should not be fully executed");
+        assertEq(orderBook.getFillPercentage(aliceOrderId), 5000, "Alice order should be 50% filled (5000 basis points)");
+
+        // Same for Bob's order
+        assertEq(orderBook.getFilledAmount(bobOrderId), partialAmount, "Bob order should be 50% filled");
+        assertTrue(orderBook.isPartiallyFilled(bobOrderId), "Bob order should be partially filled");
+        assertFalse(orderBook.isFullyExecuted(bobOrderId), "Bob order should not be fully executed");
+
+        console.log("Basic partial fills verified!");
+    }
+
+    /// @dev Test multiple partial fills on same order
+    function testMultiplePartialFills() public {
+        console.log("Testing Multiple Partial Fills");
+
+        // Setup similar to basic test
+        vm.prank(alice);
+        wPEPE.approve(address(orderBook), TRADE_AMOUNT);
+        
+        vm.prank(bob);
+        nUSD.approve(address(orderBook), TRADE_AMOUNT * PRICE_1000_USD / 1e18);
+
+        // Calculate amounts for orders
+        uint256 bobNUSDAmount = TRADE_AMOUNT * PRICE_1000_USD / 1e18;
+
+        // Commit and reveal orders
+        vm.prank(alice);
+        orderBook.commitOrder(keccak256(abi.encodePacked(TRADE_AMOUNT, PRICE_1000_USD, uint256(33333), uint8(1))));
+        uint256 aliceOrderId = nextOrderId++;
+
+        vm.prank(bob);
+        orderBook.commitOrder(keccak256(abi.encodePacked(bobNUSDAmount, uint256(1e18), uint256(44444), uint8(0))));
+        uint256 bobOrderId = nextOrderId++;
+
+        vm.warp(block.timestamp + 301);
+        
+        vm.prank(alice);
+        orderBook.revealOrder(aliceOrderId, address(wPEPE), address(nUSD), TRADE_AMOUNT, PRICE_1000_USD, 33333, OrderBook.OrderType.SELL);
+        
+        vm.prank(bob);
+        orderBook.revealOrder(bobOrderId, address(nUSD), address(wPEPE), bobNUSDAmount, uint256(1e18), 44444, OrderBook.OrderType.BUY);
+
+        vm.warp(block.timestamp + 181);
+        orderBook.createNewBatch();
+
+        // Execute multiple partial fills in a single batch processing call
+        uint256 firstFill = TRADE_AMOUNT / 4;
+        uint256 secondFill = TRADE_AMOUNT / 4;
+        uint256 finalFill = TRADE_AMOUNT - firstFill - secondFill;
+
+        // Process all three fills in one batch call (demonstrating multiple matches per order)
+        uint256[] memory buyOrderIds = new uint256[](3);
+        uint256[] memory sellOrderIds = new uint256[](3);
+        uint256[] memory matchedAmounts = new uint256[](3);
+        uint256[] memory executionPrices = new uint256[](3);
+
+        // First fill (25%)
+        buyOrderIds[0] = bobOrderId;
+        sellOrderIds[0] = aliceOrderId;
+        matchedAmounts[0] = firstFill;
+        executionPrices[0] = PRICE_1000_USD;
+
+        // Second fill (25%)
+        buyOrderIds[1] = bobOrderId;
+        sellOrderIds[1] = aliceOrderId;
+        matchedAmounts[1] = secondFill;
+        executionPrices[1] = PRICE_1000_USD;
+
+        // Final fill (50%)
+        buyOrderIds[2] = bobOrderId;
+        sellOrderIds[2] = aliceOrderId;
+        matchedAmounts[2] = finalFill;
+        executionPrices[2] = PRICE_1000_USD;
+
+        // Execute all fills in one batch processing call
+        vm.prank(matcher);
+        orderBook.processBatch(0, buyOrderIds, sellOrderIds, matchedAmounts, executionPrices);
+
+        // Verify full execution
+        assertEq(orderBook.getFilledAmount(aliceOrderId), TRADE_AMOUNT, "Alice order should be fully filled");
+        assertEq(orderBook.getFillPercentage(aliceOrderId), 10000, "Alice order should be 100% filled");
+        assertFalse(orderBook.isPartiallyFilled(aliceOrderId), "Alice order should not be partially filled");
+        assertTrue(orderBook.isFullyExecuted(aliceOrderId), "Alice order should be fully executed");
+        assertEq(orderBook.getRemainingAmount(aliceOrderId), 0, "Alice order should have no remaining amount");
+
+        console.log("Multiple partial fills verified!");
+    }
+
+    /// @dev Test partial fill utility functions
+    function testPartialFillUtilityFunctions() public {
+        console.log("Testing Partial Fill Utility Functions");
+
+        // Setup order
+        vm.prank(alice);
+        wPEPE.approve(address(orderBook), TRADE_AMOUNT);
+
+        vm.prank(alice);
+        orderBook.commitOrder(keccak256(abi.encodePacked(TRADE_AMOUNT, PRICE_1000_USD, uint256(55555), uint8(1))));
+        uint256 orderId = nextOrderId++;
+
+        vm.warp(block.timestamp + 301);
+        
+        vm.prank(alice);
+        orderBook.revealOrder(orderId, address(wPEPE), address(nUSD), TRADE_AMOUNT, PRICE_1000_USD, 55555, OrderBook.OrderType.SELL);
+
+        // Test initial state
+        assertEq(orderBook.getFilledAmount(orderId), 0, "Initially filled amount should be 0");
+        assertEq(orderBook.getRemainingAmount(orderId), TRADE_AMOUNT, "Initially remaining should be full amount");
+        assertFalse(orderBook.isPartiallyFilled(orderId), "Initially should not be partially filled");
+        assertFalse(orderBook.isFullyExecuted(orderId), "Initially should not be fully executed");
+        assertEq(orderBook.getFillPercentage(orderId), 0, "Initially fill percentage should be 0");
+
+        // Test getOrderFillInfo
+        (uint256 originalAmount, uint256 filledAmount, uint256 remainingAmount, bool executed) = orderBook.getOrderFillInfo(orderId);
+        assertEq(originalAmount, TRADE_AMOUNT, "Original amount should match");
+        assertEq(filledAmount, 0, "Filled amount should be 0");
+        assertEq(remainingAmount, TRADE_AMOUNT, "Remaining amount should be full");
+        assertFalse(executed, "Should not be executed");
+
+        console.log("Partial fill utility functions verified!");
+    }
+
+    /// @dev Test partial fill error conditions
+    function testPartialFillErrorConditions() public {
+        console.log("Testing Partial Fill Error Conditions");
+
+        // Setup orders
+        vm.prank(alice);
+        wPEPE.approve(address(orderBook), TRADE_AMOUNT);
+        
+        vm.prank(bob);
+        nUSD.approve(address(orderBook), TRADE_AMOUNT * PRICE_1000_USD / 1e18);
+
+        // Calculate amounts for orders
+        uint256 bobNUSDAmount = TRADE_AMOUNT * PRICE_1000_USD / 1e18;
+
+        vm.prank(alice);
+        orderBook.commitOrder(keccak256(abi.encodePacked(TRADE_AMOUNT, PRICE_1000_USD, uint256(66666), uint8(1))));
+        uint256 aliceOrderId = nextOrderId++;
+
+        vm.prank(bob);
+        orderBook.commitOrder(keccak256(abi.encodePacked(bobNUSDAmount, uint256(1e18), uint256(77777), uint8(0))));
+        uint256 bobOrderId = nextOrderId++;
+
+        vm.warp(block.timestamp + 301);
+        
+        vm.prank(alice);
+        orderBook.revealOrder(aliceOrderId, address(wPEPE), address(nUSD), TRADE_AMOUNT, PRICE_1000_USD, 66666, OrderBook.OrderType.SELL);
+        
+        vm.prank(bob);
+        orderBook.revealOrder(bobOrderId, address(nUSD), address(wPEPE), bobNUSDAmount, uint256(1e18), 77777, OrderBook.OrderType.BUY);
+
+        vm.warp(block.timestamp + 181);
+        orderBook.createNewBatch();
+
+        uint256[] memory buyOrderIds = new uint256[](1);
+        uint256[] memory sellOrderIds = new uint256[](1);
+        uint256[] memory matchedAmounts = new uint256[](1);
+        uint256[] memory executionPrices = new uint256[](1);
+
+        buyOrderIds[0] = bobOrderId;
+        sellOrderIds[0] = aliceOrderId;
+        executionPrices[0] = PRICE_1000_USD;
+
+        // Test zero matched amount
+        matchedAmounts[0] = 0;
+        vm.prank(matcher);
+        vm.expectRevert("Matched amount must be greater than 0");
+        orderBook.processBatch(0, buyOrderIds, sellOrderIds, matchedAmounts, executionPrices);
+
+        // Test exceeding remaining amount
+        matchedAmounts[0] = TRADE_AMOUNT + 1;
+        vm.prank(matcher);
+        vm.expectRevert("Matched amount exceeds sell order remaining");
+        orderBook.processBatch(0, buyOrderIds, sellOrderIds, matchedAmounts, executionPrices);
+
+        // Fill order completely first
+        matchedAmounts[0] = TRADE_AMOUNT;
+        vm.prank(matcher);
+        orderBook.processBatch(0, buyOrderIds, sellOrderIds, matchedAmounts, executionPrices);
+
+        // Create a new batch to test fully executed order error
+        vm.warp(block.timestamp + 1000);
+        orderBook.createNewBatch();
+
+        // Test trying to fill fully executed order (in new batch 1)
+        matchedAmounts[0] = 1;
+        vm.prank(matcher);
+        vm.expectRevert("Orders already fully executed");
+        orderBook.processBatch(1, buyOrderIds, sellOrderIds, matchedAmounts, executionPrices);
+
+        console.log("Partial fill error conditions verified!");
+    }
 }
 
 /// @dev Mock ERC20 token for testing
