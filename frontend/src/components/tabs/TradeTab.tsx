@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAccount } from "wagmi";
+import {
+  useAccount,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from "wagmi";
 import {
   Clock,
   Shield,
@@ -18,6 +22,7 @@ import {
   Target,
   Info,
   RefreshCw,
+  Coins,
 } from "lucide-react";
 import { apiService } from "../../services/api";
 import { useOrderBook } from "../../hooks/useOrderBook";
@@ -25,6 +30,7 @@ import {
   useTokenApprovals,
   type TokenSymbol,
 } from "../../hooks/useTokenApprovals";
+import { CONTRACT_ADDRESSES } from "../../config/addresses";
 import ApprovalButton from "../ApprovalButton";
 import ApprovalStatus from "../ApprovalStatus";
 import OrderFillProgress from "../OrderFillProgress";
@@ -75,6 +81,86 @@ const TradeTab: React.FC = () => {
     type: "success" | "error" | "info";
     message: string;
   } | null>(null);
+
+  // Mint wCTRA functionality
+  const [mintAmount, setMintAmount] = useState("1000");
+  const [isMinting, setIsMinting] = useState(false);
+
+  // Bridge contract interaction for minting
+  const { writeContract: writeBridge, data: mintHash } = useWriteContract();
+  const { isLoading: isMintConfirming, isSuccess: isMintSuccess } =
+    useWaitForTransactionReceipt({
+      hash: mintHash,
+    });
+
+  // Handle mint success
+  useEffect(() => {
+    if (isMintSuccess) {
+      setIsMinting(false);
+      setNotification({
+        type: "success",
+        message: `Successfully minted ${mintAmount} wCTRA tokens!`,
+      });
+    }
+  }, [isMintSuccess, mintAmount]);
+
+  // Mint wCTRA tokens function
+  const handleMintWCTRA = async () => {
+    if (!address) {
+      setNotification({
+        type: "error",
+        message: "Please connect your wallet first",
+      });
+      return;
+    }
+
+    const amount = parseFloat(mintAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setNotification({
+        type: "error",
+        message: "Please enter a valid amount",
+      });
+      return;
+    }
+
+    try {
+      setIsMinting(true);
+      const amountWei = BigInt(amount * 10 ** 18);
+      const txHash = `test_mint_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+
+      // Call the bridge's processBridgeIn function
+      writeBridge({
+        address: CONTRACT_ADDRESSES.BRIDGE,
+        abi: [
+          {
+            inputs: [
+              { internalType: "address", name: "user", type: "address" },
+              { internalType: "string", name: "ticker", type: "string" },
+              { internalType: "uint256", name: "amount", type: "uint256" },
+              { internalType: "string", name: "btcTxHash", type: "string" },
+            ],
+            name: "processBridgeIn",
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+          },
+        ],
+        functionName: "processBridgeIn",
+        args: [address, "CTRA", amountWei, txHash],
+      });
+    } catch (error) {
+      console.error("Mint error:", error);
+      setIsMinting(false);
+      setNotification({
+        type: "error",
+        message: `Failed to mint wCTRA: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      });
+    }
+  };
 
   // Real-time data queries
   const { data: currentBatchData, isLoading: batchLoading } = useQuery({
@@ -768,6 +854,8 @@ const TradeTab: React.FC = () => {
 
         {/* Order Form */}
         <div className="lg:col-span-2">
+          {/* Test Utilities */}
+
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-pool-text">
@@ -1087,6 +1175,58 @@ const TradeTab: React.FC = () => {
             </form>
           </div>
         </div>
+        {address && (
+          <div className="glass-card p-4 mb-6 border-dashed border-citrea-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <Coins className="w-4 h-4 text-citrea-500" />
+                <h4 className="text-sm font-medium text-pool-text">
+                  Test Utilities
+                </h4>
+              </div>
+              <span className="text-xs text-pool-muted">For Testing Only</span>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <div className="flex-1">
+                <label className="block text-xs text-pool-muted mb-1">
+                  Mint wCTRA Amount
+                </label>
+                <input
+                  type="number"
+                  value={mintAmount}
+                  onChange={(e) => setMintAmount(e.target.value)}
+                  placeholder="1000"
+                  min="1"
+                  step="1"
+                  className="input-field w-full text-sm py-2"
+                />
+              </div>
+              <button
+                onClick={handleMintWCTRA}
+                disabled={isMinting || isMintConfirming || !address}
+                className="mt-5 px-4 py-2 bg-citrea-500 hover:bg-citrea-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+              >
+                {isMinting || isMintConfirming ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Minting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Coins className="w-4 h-4" />
+                    <span>Mint wCTRA</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="text-xs text-pool-muted mt-2">
+              Mint test wCTRA tokens to your wallet for trading. Each mint
+              creates a unique transaction.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Reveal Order Modal */}
@@ -1180,6 +1320,14 @@ const TradeTab: React.FC = () => {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {!address && (
+        <div className="glass-card p-8 text-center">
+          <p className="text-sm text-yellow-400 text-center">
+            ⚠️ Connect your wallet to submit orders
+          </p>
         </div>
       )}
     </div>
