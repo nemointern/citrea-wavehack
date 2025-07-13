@@ -9,14 +9,28 @@
 const PRODUCTION_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const DEVELOPMENT_BACKEND_URL = "http://localhost:3001";
 
-// Temporarily force AWS backend for testing
 export const API_BASE_URL = import.meta.env.PROD
   ? PRODUCTION_BACKEND_URL
   : DEVELOPMENT_BACKEND_URL;
 
-console.log("API_BASE_URL", API_BASE_URL);
-console.log("Vite PROD mode:", import.meta.env.PROD);
-console.log("Vite DEV mode:", import.meta.env.DEV);
+// Validation to ensure we never have undefined URLs
+if (!API_BASE_URL || API_BASE_URL === "undefined") {
+  console.error("API_BASE_URL is undefined! Using fallback.");
+  console.error("Environment:", {
+    PROD: import.meta.env.PROD,
+    DEV: import.meta.env.DEV,
+    VITE_BACKEND_URL: import.meta.env.VITE_BACKEND_URL,
+    PRODUCTION_BACKEND_URL,
+    DEVELOPMENT_BACKEND_URL,
+  });
+}
+
+console.log("✅ API_BASE_URL:", API_BASE_URL);
+console.log(
+  "🌍 Environment:",
+  import.meta.env.PROD ? "PRODUCTION" : "DEVELOPMENT"
+);
+console.log("🔧 VITE_BACKEND_URL:", import.meta.env.VITE_BACKEND_URL);
 // API endpoints
 export const API_ENDPOINTS = {
   // Health check

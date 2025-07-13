@@ -398,8 +398,18 @@ app.post("/api/darkpool/batch/process", async (req: any, res: any) => {
       return res.status(400).json({ error: "Missing required parameters" });
     }
 
+    // Convert orders to RevealedOrder format with BigInt values
+    const revealedOrders = orders.map((order: any) => ({
+      ...order,
+      amount: BigInt(order.amount),
+      price: BigInt(order.price),
+    }));
+
     // Process matching
-    const batchResult = await matchingEngine.processBatch(batchId, orders);
+    const batchResult = await matchingEngine.processBatch(
+      batchId,
+      revealedOrders
+    );
 
     // Execute on blockchain if there are matches
     if (batchResult.matches.length > 0) {

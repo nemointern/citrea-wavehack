@@ -206,12 +206,12 @@ export class MatchingEngine extends EventEmitter {
       `  💰 Reference price: ${referencePrice}, bounds: [${minPrice}, ${maxPrice}]`
     );
 
-    // Find orders within price tolerance
+    // Consider all orders for matching (let canMatchOrders decide compatibility)
     const validBuyOrders = buyOrders.filter(
-      (order) => order.price >= minPrice && !usedBuyOrders.has(order.orderId)
+      (order) => !usedBuyOrders.has(order.orderId)
     );
     const validSellOrders = sellOrders.filter(
-      (order) => order.price <= maxPrice && !usedSellOrders.has(order.orderId)
+      (order) => !usedSellOrders.has(order.orderId)
     );
 
     // Match orders at reference price
@@ -222,6 +222,9 @@ export class MatchingEngine extends EventEmitter {
         if (usedSellOrders.has(sellOrder.orderId)) continue;
 
         // Check if orders can be matched
+        console.log(
+          `    🔍 Checking match: Buy ${buyOrder.orderId} (${buyOrder.price}) vs Sell ${sellOrder.orderId} (${sellOrder.price})`
+        );
         if (this.canMatchOrders(buyOrder, sellOrder, referencePrice)) {
           const matchedAmount =
             buyOrder.amount <= sellOrder.amount
@@ -275,8 +278,9 @@ export class MatchingEngine extends EventEmitter {
               ? buyOrder.amount
               : sellOrder.amount;
 
-          // Use midpoint price for execution
-          const executionPrice = (buyOrder.price + sellOrder.price) / 2n;
+          // Use midpoint price for execution - ensure BigInt arithmetic
+          const executionPrice =
+            (BigInt(buyOrder.price) + BigInt(sellOrder.price)) / 2n;
 
           const match: OrderMatch = {
             buyOrderId: buyOrder.orderId,
@@ -309,24 +313,32 @@ export class MatchingEngine extends EventEmitter {
     sellOrder: RevealedOrder,
     referencePrice: bigint
   ): boolean {
-    // Check if tokens match (A/B vs B/A)
+    // Check if orders are for the same token pair
     const tokensMatch =
-      (buyOrder.tokenA === sellOrder.tokenB &&
-        buyOrder.tokenB === sellOrder.tokenA) ||
-      (buyOrder.tokenA === sellOrder.tokenA &&
-        buyOrder.tokenB === sellOrder.tokenB);
+      buyOrder.tokenA === sellOrder.tokenA &&
+      buyOrder.tokenB === sellOrder.tokenB;
 
     if (!tokensMatch) return false;
 
-    // Check price tolerance
-    const buyPriceOk =
+    // Check if orders have compatible types
+    if (buyOrder.orderType !== "BUY" || sellOrder.orderType !== "SELL") {
+      return false;
+    }
+
+    // For a match to be possible:
+    // - Buy order price should be >= sell order price (willing to pay more than asking)
+    // OR both orders should be within tolerance of reference price for fair matching
+    const pricesCross = buyOrder.price >= sellOrder.price;
+
+    // Also check if both orders are within tolerance of reference price
+    const buyPriceInTolerance =
       buyOrder.price >=
       referencePrice - (referencePrice * this.PRICE_TOLERANCE) / 10000n;
-    const sellPriceOk =
+    const sellPriceInTolerance =
       sellOrder.price <=
       referencePrice + (referencePrice * this.PRICE_TOLERANCE) / 10000n;
 
-    return buyPriceOk && sellPriceOk;
+    return pricesCross || (buyPriceInTolerance && sellPriceInTolerance);
   }
 
   /**
