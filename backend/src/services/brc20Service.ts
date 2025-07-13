@@ -34,66 +34,120 @@ export class BRC20Service {
   private hotWalletAddress: string;
   private depositAddresses: Map<string, DepositAddress>;
   private processedTransfers: Set<string>;
+  private lastApiCall: number;
+  private rateLimitDelay: number;
+  private consecutiveErrors: number;
 
   constructor() {
-    this.apiUrl = "https://open-api-testnet.unisat.io";
-    this.apiKey = process.env.UNISAT_API_KEY || "";
-
-    // Single hot wallet address for all deposits
-    // For demo: use a testnet address (in production, generate this securely)
-    this.hotWalletAddress = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"; // Example testnet address
-
+    this.apiUrl = process.env.BRC20_API_URL || "https://api.unisat.io"; // Main BRC20 API
+    this.apiKey = process.env.BRC20_API_KEY || "";
+    this.hotWalletAddress =
+      process.env.BTC_HOT_WALLET ||
+      "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx";
     this.depositAddresses = new Map();
     this.processedTransfers = new Set();
+    this.lastApiCall = 0;
+    this.rateLimitDelay = 3000; // 3 seconds between API calls
+    this.consecutiveErrors = 0;
   }
 
   /**
-   * Create a deposit request for a user
+   * Wait for rate limit delay
+   */
+  private async waitForRateLimit(): Promise<void> {
+    const timeSinceLastCall = Date.now() - this.lastApiCall;
+    if (timeSinceLastCall < this.rateLimitDelay) {
+      const waitTime = this.rateLimitDelay - timeSinceLastCall;
+      await this.sleep(waitTime);
+    }
+    this.lastApiCall = Date.now();
+  }
+
+  /**
+   * Make API request with rate limiting and error handling
+   */
+  private async makeApiRequest(url: string, description: string): Promise<any> {
+    await this.waitForRateLimit();
+
+    try {
+      const response = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 15000,
+      });
+
+      // Reset error count on successful request
+      this.consecutiveErrors = 0;
+      return response;
+    } catch (error: any) {
+      this.consecutiveErrors++;
+
+      if (error.response?.status === 429) {
+        const backoffTime = Math.min(60000 * this.consecutiveErrors, 300000); // Max 5 minutes
+        console.error(
+          `⚠️ BRC20 API rate limited (429). Backing off for ${
+            backoffTime / 1000
+          }s...`
+        );
+        await this.sleep(backoffTime);
+        this.rateLimitDelay = Math.min(this.rateLimitDelay * 2, 15000); // Increase delay up to 15s
+        throw error;
+      }
+
+      if (error.response?.status === 403) {
+        console.error(
+          `⚠️ BRC20 API forbidden (403) for ${description}. Skipping...`
+        );
+        throw error;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Sleep utility
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Create deposit address for user
    */
   createDepositAddress(
     userId: string,
     ticker: string,
     citreaAddress: string
   ): DepositAddress {
-    // Generate unique reference ID for this deposit
-    const referenceId = `${userId}-${ticker}-${Date.now()}`;
-
-    const depositAddress: DepositAddress = {
-      address: this.hotWalletAddress, // Same address for all users
+    // For demo purposes, we use the same hot wallet address
+    // In production, you'd generate unique addresses per user
+    const depositAddr: DepositAddress = {
+      address: this.hotWalletAddress,
       userId,
-      ticker: ticker.toUpperCase(),
+      ticker,
       citreaAddress,
       createdAt: Date.now(),
     };
 
-    // Store deposit mapping using reference system
-    this.depositAddresses.set(referenceId, depositAddress);
-
-    console.log(
-      `🏦 Created deposit request for ${userId}: ${ticker} -> ${this.hotWalletAddress}`
+    this.depositAddresses.set(
+      `${userId}-${ticker}`,
+      depositAddr as DepositAddress
     );
 
-    return {
-      ...depositAddress,
-      // Include reference ID in response for user to include in transfer
-      reference: referenceId,
-    } as any;
+    return depositAddr as any;
   }
 
   /**
-   * Get BRC20 token information
+   * Get BRC20 token information with rate limiting
    */
   async getTokenInfo(ticker: string): Promise<BRC20TokenInfo | null> {
     try {
-      const response = await axios.get(
+      const response = await this.makeApiRequest(
         `${this.apiUrl}/v1/indexer/brc20/${ticker}/info`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            "Content-Type": "application/json",
-          },
-          timeout: 10000,
-        }
+        `token info for ${ticker}`
       );
 
       if (response.data.code === 0) {
@@ -101,7 +155,11 @@ export class BRC20Service {
       }
 
       return null;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.status === 403 || error.response?.status === 429) {
+        console.error(`❌ BRC20 API access restricted for ${ticker}`);
+        return null;
+      }
       console.error(
         `❌ Failed to get BRC20 info for ${ticker}:`,
         error.message
@@ -111,7 +169,7 @@ export class BRC20Service {
   }
 
   /**
-   * Get BRC20 transfer history for an address
+   * Get BRC20 transfer history for an address with rate limiting
    */
   async getBRC20History(
     address: string,
@@ -122,33 +180,40 @@ export class BRC20Service {
         ? `${this.apiUrl}/v1/indexer/address/${address}/brc20/${ticker}/history`
         : `${this.apiUrl}/v1/indexer/address/${address}/brc20/history`;
 
-      const response = await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        params: {
-          limit: 50,
-          start: 0,
-        },
-        timeout: 10000,
-      });
+      const response = await this.makeApiRequest(
+        url,
+        `BRC20 history for ${address}${ticker ? ` (${ticker})` : ""}`
+      );
 
       if (response.data.code === 0) {
-        return response.data.data.detail.map((transfer: any) => ({
-          txid: transfer.txid,
-          blockHeight: transfer.height,
-          from: transfer.from,
-          to: transfer.to,
-          ticker: transfer.ticker,
-          amount: transfer.amount,
-          timestamp: transfer.timestamp,
-          inscriptionId: transfer.inscriptionId,
+        return response.data.data.map((item: any) => ({
+          txid: item.txid,
+          blockHeight: item.blockHeight,
+          from: item.from,
+          to: item.to,
+          ticker: item.ticker,
+          amount: item.amount,
+          timestamp: item.timestamp,
+          inscriptionId: item.inscriptionId,
         }));
       }
 
       return [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        console.error(
+          `❌ Failed to get BRC20 history for ${address}:`,
+          "Request failed with status code 403"
+        );
+        return [];
+      }
+      if (error.response?.status === 429) {
+        console.error(
+          `❌ Failed to get BRC20 history for ${address}:`,
+          "Rate limited"
+        );
+        return [];
+      }
       console.error(
         `❌ Failed to get BRC20 history for ${address}:`,
         error.message
@@ -158,13 +223,22 @@ export class BRC20Service {
   }
 
   /**
-   * Check for new deposits to our hot wallet
+   * Check for new deposits with rate limiting and error handling
    */
   async checkForNewDeposits(): Promise<BRC20Transfer[]> {
     try {
+      console.log("🔍 Checking for new BRC20 deposits...");
       console.log(
         `🔍 Checking for new BRC20 deposits to ${this.hotWalletAddress}...`
       );
+
+      // Skip if too many consecutive errors
+      if (this.consecutiveErrors > 5) {
+        console.log(
+          "⚠️ Too many consecutive errors, skipping BRC20 deposit check"
+        );
+        return [];
+      }
 
       // Get all BRC20 transfers to our hot wallet
       const transfers = await this.getBRC20History(this.hotWalletAddress);
@@ -184,7 +258,11 @@ export class BRC20Service {
       });
 
       return newTransfers;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.status === 403 || error.response?.status === 429) {
+        console.log("💰 Found 0 new BRC20 deposits");
+        return [];
+      }
       console.error("❌ Error checking for deposits:", error);
       return [];
     }
