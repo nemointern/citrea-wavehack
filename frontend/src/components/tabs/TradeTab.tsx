@@ -15,6 +15,9 @@ import {
   Loader2,
   Copy,
   ExternalLink,
+  Target,
+  Info,
+  RefreshCw,
 } from "lucide-react";
 import { apiService } from "../../services/api";
 import { useOrderBook } from "../../hooks/useOrderBook";
@@ -24,6 +27,8 @@ import {
 } from "../../hooks/useTokenApprovals";
 import ApprovalButton from "../ApprovalButton";
 import ApprovalStatus from "../ApprovalStatus";
+import OrderFillProgress from "../OrderFillProgress";
+import OrderStatusBadge from "../OrderStatusBadge";
 
 interface OrderFormData {
   tokenA: string;
@@ -47,6 +52,7 @@ const TradeTab: React.FC = () => {
     commitHash,
     commitError,
     refreshOrderId,
+    refreshAllOrderFillInfo,
   } = useOrderBook();
 
   // Token approvals hook
@@ -259,20 +265,14 @@ const TradeTab: React.FC = () => {
     }
   };
 
-  const getOrderStatusIcon = (status: string) => {
-    switch (status) {
-      case "COMMITTED":
-        return <EyeOff className="w-4 h-4" />;
-      case "REVEALED":
-        return <Eye className="w-4 h-4" />;
-      case "MATCHED":
-        return <CheckCircle className="w-4 h-4" />;
-      case "FAILED":
-        return <X className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
+  useEffect(() => {
+    if (currentBatch.timeRemaining < 0) {
+      setNotification({
+        type: "info",
+        message: "Current batch has ended. Orders can no longer be committed.",
+      });
     }
-  };
+  }, [currentBatch.timeRemaining]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -399,15 +399,31 @@ const TradeTab: React.FC = () => {
                 <h3 className="text-lg font-semibold text-pool-text">
                   My Orders
                 </h3>
-                <button
-                  onClick={() => setShowMyOrders(!showMyOrders)}
-                  className="text-sm text-citrea-500 hover:text-citrea-400"
-                >
-                  {showMyOrders ? "Hide" : "Show"} ({userOrders.length})
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={async () => {
+                      await refreshAllOrderFillInfo();
+                      setNotification({
+                        type: "success",
+                        message: "Order fill information refreshed!",
+                      });
+                    }}
+                    className="text-xs text-citrea-500 hover:text-citrea-400 px-2 py-1 rounded border border-citrea-500/30 flex items-center space-x-1"
+                    title="Refresh partial fill information"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Refresh</span>
+                  </button>
+                  <button
+                    onClick={() => setShowMyOrders(!showMyOrders)}
+                    className="text-sm text-citrea-500 hover:text-citrea-400"
+                  >
+                    {showMyOrders ? "Hide" : "Show"} ({userOrders.length})
+                  </button>
+                </div>
               </div>
 
-              {/* Order Status Summary */}
+              {/* Enhanced Order Status Summary */}
               {userOrders.length > 0 && (
                 <div className="mb-4 p-3 bg-pool-card/50 border border-pool-border rounded-lg">
                   <div className="text-xs text-pool-muted mb-2">
@@ -434,6 +450,28 @@ const TradeTab: React.FC = () => {
                           ).length
                         }{" "}
                         Revealed
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <TrendingUp className="w-3 h-3 text-orange-400" />
+                      <span className="text-orange-400">
+                        {
+                          userOrders.filter(
+                            (order) => order.status === "PARTIALLY_FILLED"
+                          ).length
+                        }{" "}
+                        Partial
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Target className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-400">
+                        {
+                          userOrders.filter(
+                            (order) => order.status === "FULLY_EXECUTED"
+                          ).length
+                        }{" "}
+                        Complete
                       </span>
                     </div>
                     <div className="flex items-center space-x-1">
@@ -468,6 +506,10 @@ const TradeTab: React.FC = () => {
                             ? "bg-blue-500/5 border-blue-500/20"
                             : order.status === "MATCHED"
                             ? "bg-green-500/5 border-green-500/20"
+                            : order.status === "PARTIALLY_FILLED"
+                            ? "bg-orange-500/5 border-orange-500/20"
+                            : order.status === "FULLY_EXECUTED"
+                            ? "bg-emerald-500/5 border-emerald-500/20"
                             : "bg-pool-card border-pool-border"
                         }`}
                       >
@@ -520,28 +562,91 @@ const TradeTab: React.FC = () => {
                           </div>
                           <div className="flex items-center space-x-2">
                             {/* Enhanced Status Badge */}
-                            <div
-                              className={`flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium ${
-                                order.status === "COMMITTED"
-                                  ? "bg-yellow-500/20 text-yellow-400"
-                                  : order.status === "REVEALED"
-                                  ? "bg-blue-500/20 text-blue-400"
-                                  : order.status === "MATCHED"
-                                  ? "bg-green-500/20 text-green-400"
-                                  : "bg-pool-border text-pool-muted"
-                              }`}
-                            >
-                              {getOrderStatusIcon(order.status)}
-                              <span>{order.status}</span>
-                            </div>
+                            <OrderStatusBadge
+                              status={order.status}
+                              fillPercentage={order.fillPercentage || 0}
+                              compact={true}
+                            />
                           </div>
                         </div>
 
-                        {/* Order Details */}
-                        <div className="text-xs text-pool-muted mb-2">
-                          {order.orderType} {order.amount} {order.tokenA} @{" "}
-                          {order.price} {order.tokenB}
+                        {/* Enhanced Order Details */}
+                        <div className="mb-2">
+                          <div className="text-xs text-pool-muted mb-1">
+                            {order.orderType} {order.tokenA} @ {order.price}{" "}
+                            {order.tokenB}
+                          </div>
+
+                          {/* Show enhanced amount details for partial fills */}
+                          {(order.status === "PARTIALLY_FILLED" ||
+                            order.status === "FULLY_EXECUTED") &&
+                          order.filledAmount &&
+                          order.remainingAmount ? (
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div>
+                                <div className="text-pool-muted">Original</div>
+                                <div className="text-pool-text font-medium">
+                                  {parseFloat(
+                                    (
+                                      BigInt(order.amount) / BigInt(10 ** 18)
+                                    ).toString()
+                                  ).toFixed(4)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-orange-400">Filled</div>
+                                <div className="text-pool-text font-medium">
+                                  {parseFloat(
+                                    (
+                                      BigInt(order.filledAmount) /
+                                      BigInt(10 ** 18)
+                                    ).toString()
+                                  ).toFixed(4)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-blue-400">Remaining</div>
+                                <div className="text-pool-text font-medium">
+                                  {parseFloat(
+                                    (
+                                      BigInt(order.remainingAmount) /
+                                      BigInt(10 ** 18)
+                                    ).toString()
+                                  ).toFixed(4)}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-pool-text font-medium text-xs">
+                              Amount:{" "}
+                              {parseFloat(
+                                (
+                                  BigInt(order.amount) / BigInt(10 ** 18)
+                                ).toString()
+                              ).toFixed(4)}{" "}
+                              {order.tokenA}
+                            </div>
+                          )}
                         </div>
+
+                        {/* Partial Fill Progress */}
+                        {(order.status === "PARTIALLY_FILLED" ||
+                          order.status === "FULLY_EXECUTED") &&
+                          order.filledAmount && (
+                            <div className="mb-3">
+                              <OrderFillProgress
+                                filledAmount={order.filledAmount}
+                                totalAmount={order.amount}
+                                fillPercentage={order.fillPercentage || 0}
+                                isPartiallyFilled={
+                                  order.isPartiallyFilled || false
+                                }
+                                isFullyExecuted={order.isFullyExecuted || false}
+                                tokenSymbol={order.tokenA}
+                                compact={true}
+                              />
+                            </div>
+                          )}
 
                         {/* Batch and Status Info */}
                         <div className="flex items-center justify-between text-xs">
@@ -631,6 +736,30 @@ const TradeTab: React.FC = () => {
                       </div>
                     ))
                   )}
+                </div>
+              )}
+
+              {/* Partial Fill Information */}
+              {userOrders.some(
+                (order) =>
+                  order.status === "PARTIALLY_FILLED" ||
+                  order.status === "FULLY_EXECUTED"
+              ) && (
+                <div className="mb-4 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-blue-300">
+                      <div className="font-medium mb-1">
+                        Partial Fill Support
+                      </div>
+                      <div className="text-blue-200/80">
+                        Orders can now be filled in parts! Track your progress
+                        with real-time fill percentages and remaining amounts.
+                        Large orders may be matched across multiple batches for
+                        better liquidity.
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

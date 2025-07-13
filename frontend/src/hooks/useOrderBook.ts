@@ -24,6 +24,35 @@ interface OrderData {
   orderType: "BUY" | "SELL";
 }
 
+// Enhanced order interface with partial fill support
+interface OrderWithFillInfo {
+  orderId: number | null; // Allow null for pending orders
+  realOrderId?: number; // The actual smart contract order ID
+  batchId: number;
+  tokenA: string;
+  tokenB: string;
+  amount: string; // Original order amount
+  price: string;
+  orderType: "BUY" | "SELL";
+  status:
+    | "COMMITTED"
+    | "REVEALED"
+    | "MATCHED"
+    | "PARTIALLY_FILLED"
+    | "FULLY_EXECUTED";
+  commitHash: string;
+  salt: string;
+  timestamp: number;
+  txHash: string;
+  // New partial fill fields
+  filledAmount?: string; // Amount already filled
+  remainingAmount?: string; // Amount remaining to be filled
+  fillPercentage?: number; // Fill percentage (0-100)
+  isPartiallyFilled?: boolean; // Quick check for partial fills
+  isFullyExecuted?: boolean; // Quick check for full execution
+  lastFillUpdate?: number; // Timestamp of last fill status update
+}
+
 export function useOrderBook() {
   const { address } = useAccount();
   const publicClient = usePublicClient();
@@ -41,21 +70,7 @@ export function useOrderBook() {
   // Store user's orders locally with localStorage persistence
   const getStorageKey = () => `citrea-orders-${address}`;
 
-  const loadOrdersFromStorage = (): Array<{
-    orderId: number | null; // Allow null for pending orders
-    realOrderId?: number; // The actual smart contract order ID
-    batchId: number;
-    tokenA: string;
-    tokenB: string;
-    amount: string;
-    price: string;
-    orderType: "BUY" | "SELL";
-    status: "COMMITTED" | "REVEALED" | "MATCHED";
-    commitHash: string;
-    salt: string;
-    timestamp: number;
-    txHash: string;
-  }> => {
+  const loadOrdersFromStorage = (): Array<OrderWithFillInfo> => {
     if (!address || typeof window === "undefined") return [];
 
     try {
@@ -67,23 +82,9 @@ export function useOrderBook() {
     }
   };
 
-  const [userOrders, setUserOrders] = useState<
-    Array<{
-      orderId: number | null;
-      realOrderId?: number;
-      batchId: number;
-      tokenA: string;
-      tokenB: string;
-      amount: string;
-      price: string;
-      orderType: "BUY" | "SELL";
-      status: "COMMITTED" | "REVEALED" | "MATCHED";
-      commitHash: string;
-      salt: string;
-      timestamp: number;
-      txHash: string;
-    }>
-  >(loadOrdersFromStorage);
+  const [userOrders, setUserOrders] = useState<Array<OrderWithFillInfo>>(
+    loadOrdersFromStorage
+  );
 
   // Save orders to localStorage whenever they change
   useEffect(() => {
@@ -600,88 +601,239 @@ export function useOrderBook() {
     return null;
   };
 
-  // Read order status directly from smart contract
-  const readOrderStatus = async (orderId: number) => {
+  // ==================== PARTIAL FILL UTILITY FUNCTIONS ====================
+
+  /**
+   * Get the remaining amount for an order
+   */
+  const getRemainingAmount = async (
+    orderId: number
+  ): Promise<string | null> => {
     if (!publicClient || !orderId) return null;
 
     try {
-      console.log("Reading order status from contract for order:", orderId);
-
-      // Read committed order data
-      const committedOrder = (await publicClient.readContract({
+      const result = (await publicClient.readContract({
         address: ORDERBOOK_ADDRESS,
         abi: ORDERBOOK_ABI,
-        functionName: "committedOrders",
+        functionName: "getRemainingAmount",
         args: [BigInt(orderId)],
-      })) as any;
+      })) as bigint;
 
-      console.log("Committed order data:", committedOrder);
-
-      // Status is the 5th field (index 4) in the CommittedOrder struct
-      // 0: COMMITTED, 1: REVEALED, 2: MATCHED, 3: CANCELLED
-      const status = committedOrder?.[4];
-      console.log("Order status from contract:", status);
-
-      if (status === 0) return "COMMITTED";
-      if (status === 1) return "REVEALED";
-      if (status === 2) return "MATCHED";
-      if (status === 3) return "CANCELLED";
-
-      return "COMMITTED"; // Default
+      return result.toString();
     } catch (error) {
-      console.error("Error reading order status:", error);
+      console.error("Error getting remaining amount:", error);
       return null;
     }
   };
 
-  // Auto-refresh order statuses every 10 seconds
+  /**
+   * Get the filled amount for an order
+   */
+  const getFilledAmount = async (orderId: number): Promise<string | null> => {
+    if (!publicClient || !orderId) return null;
+
+    try {
+      const result = (await publicClient.readContract({
+        address: ORDERBOOK_ADDRESS,
+        abi: ORDERBOOK_ABI,
+        functionName: "getFilledAmount",
+        args: [BigInt(orderId)],
+      })) as bigint;
+
+      return result.toString();
+    } catch (error) {
+      console.error("Error getting filled amount:", error);
+      return null;
+    }
+  };
+
+  /**
+   * Check if an order is partially filled
+   */
+  const isPartiallyFilled = async (orderId: number): Promise<boolean> => {
+    if (!publicClient || !orderId) return false;
+
+    try {
+      const result = (await publicClient.readContract({
+        address: ORDERBOOK_ADDRESS,
+        abi: ORDERBOOK_ABI,
+        functionName: "isPartiallyFilled",
+        args: [BigInt(orderId)],
+      })) as boolean;
+
+      return result;
+    } catch (error) {
+      console.error("Error checking if partially filled:", error);
+      return false;
+    }
+  };
+
+  /**
+   * Check if an order is fully executed
+   */
+  const isFullyExecuted = async (orderId: number): Promise<boolean> => {
+    if (!publicClient || !orderId) return false;
+
+    try {
+      const result = (await publicClient.readContract({
+        address: ORDERBOOK_ADDRESS,
+        abi: ORDERBOOK_ABI,
+        functionName: "isFullyExecuted",
+        args: [BigInt(orderId)],
+      })) as boolean;
+
+      return result;
+    } catch (error) {
+      console.error("Error checking if fully executed:", error);
+      return false;
+    }
+  };
+
+  /**
+   * Get the fill percentage for an order (in basis points)
+   */
+  const getFillPercentage = async (orderId: number): Promise<number> => {
+    if (!publicClient || !orderId) return 0;
+
+    try {
+      const result = (await publicClient.readContract({
+        address: ORDERBOOK_ADDRESS,
+        abi: ORDERBOOK_ABI,
+        functionName: "getFillPercentage",
+        args: [BigInt(orderId)],
+      })) as bigint;
+
+      // Convert from basis points (0-10000) to percentage (0-100)
+      return Number(result) / 100;
+    } catch (error) {
+      console.error("Error getting fill percentage:", error);
+      return 0;
+    }
+  };
+
+  /**
+   * Get comprehensive order fill information
+   */
+  const getOrderFillInfo = async (
+    orderId: number
+  ): Promise<{
+    originalAmount: string;
+    filledAmount: string;
+    remainingAmount: string;
+    executed: boolean;
+  } | null> => {
+    if (!publicClient || !orderId) return null;
+
+    try {
+      const result = (await publicClient.readContract({
+        address: ORDERBOOK_ADDRESS,
+        abi: ORDERBOOK_ABI,
+        functionName: "getOrderFillInfo",
+        args: [BigInt(orderId)],
+      })) as [bigint, bigint, bigint, boolean];
+
+      return {
+        originalAmount: result[0].toString(),
+        filledAmount: result[1].toString(),
+        remainingAmount: result[2].toString(),
+        executed: result[3],
+      };
+    } catch (error) {
+      console.error("Error getting order fill info:", error);
+      return null;
+    }
+  };
+
+  /**
+   * Update order with latest fill information
+   */
+  const updateOrderFillInfo = async (
+    order: OrderWithFillInfo
+  ): Promise<OrderWithFillInfo> => {
+    if (!order.realOrderId) return order;
+
+    try {
+      const fillInfo = await getOrderFillInfo(order.realOrderId);
+      if (!fillInfo) return order;
+
+      const fillPercentage = await getFillPercentage(order.realOrderId);
+      const isPartial = await isPartiallyFilled(order.realOrderId);
+      const isFullyDone = await isFullyExecuted(order.realOrderId);
+
+      // Determine enhanced status
+      let enhancedStatus: OrderWithFillInfo["status"] = order.status;
+      if (isFullyDone) {
+        enhancedStatus = "FULLY_EXECUTED";
+      } else if (isPartial) {
+        enhancedStatus = "PARTIALLY_FILLED";
+      } else if (order.status === "MATCHED") {
+        // Keep as MATCHED if not partial but was matched
+        enhancedStatus = "MATCHED";
+      }
+
+      return {
+        ...order,
+        filledAmount: fillInfo.filledAmount,
+        remainingAmount: fillInfo.remainingAmount,
+        fillPercentage,
+        isPartiallyFilled: isPartial,
+        isFullyExecuted: isFullyDone,
+        status: enhancedStatus,
+        lastFillUpdate: Date.now(),
+      };
+    } catch (error) {
+      console.error("Error updating order fill info:", error);
+      return order;
+    }
+  };
+
+  /**
+   * Refresh fill information for all revealed orders
+   */
+  const refreshAllOrderFillInfo = async () => {
+    if (!userOrders.length || !publicClient) return;
+
+    console.log("Refreshing fill information for all orders...");
+
+    const updatedOrders = await Promise.all(
+      userOrders.map(async (order) => {
+        if (
+          order.status === "REVEALED" ||
+          order.status === "MATCHED" ||
+          order.status === "PARTIALLY_FILLED" ||
+          order.status === "FULLY_EXECUTED"
+        ) {
+          return await updateOrderFillInfo(order);
+        }
+        return order;
+      })
+    );
+
+    setUserOrders(updatedOrders);
+  };
+
+  // Auto-refresh order statuses with partial fill information every 10 seconds
   useEffect(() => {
     if (userOrders.length === 0 || !publicClient) return;
 
-    console.log("Setting up auto-refresh for order statuses...");
+    console.log(
+      "Setting up auto-refresh for order statuses with partial fill info..."
+    );
 
     const interval = setInterval(async () => {
-      console.log("Auto-refreshing order statuses from blockchain...");
+      console.log(
+        "Auto-refreshing order statuses and fill information from blockchain..."
+      );
 
-      for (const order of userOrders) {
-        if (order.realOrderId) {
-          try {
-            const onchainStatus = await readOrderStatus(order.realOrderId);
-            if (onchainStatus && onchainStatus !== order.status) {
-              console.log(
-                `Order ${order.realOrderId} status changed: ${order.status} -> ${onchainStatus}`
-              );
-
-              // Update this specific order
-              setUserOrders((prev) =>
-                prev.map((o) =>
-                  o.realOrderId === order.realOrderId
-                    ? {
-                        ...o,
-                        status: onchainStatus as
-                          | "COMMITTED"
-                          | "REVEALED"
-                          | "MATCHED",
-                      }
-                    : o
-                )
-              );
-            }
-          } catch (error) {
-            console.error(
-              `Error checking status for order ${order.realOrderId}:`,
-              error
-            );
-          }
-        }
-      }
+      // Use the new comprehensive refresh function
+      await refreshAllOrderFillInfo();
     }, 10000); // 10 seconds
 
     return () => {
       console.log("Clearing auto-refresh interval");
       clearInterval(interval);
     };
-  }, [userOrders, publicClient]);
+  }, [userOrders, publicClient, refreshAllOrderFillInfo]);
 
   return {
     // States
@@ -695,6 +847,16 @@ export function useOrderBook() {
     refetchBatch,
     clearOrders,
     refreshOrderId,
+
+    // New Partial Fill Functions
+    getRemainingAmount,
+    getFilledAmount,
+    isPartiallyFilled,
+    isFullyExecuted,
+    getFillPercentage,
+    getOrderFillInfo,
+    updateOrderFillInfo,
+    refreshAllOrderFillInfo,
 
     // Transaction states
     isCommitPending: isCommitPending || isCommitConfirming,
