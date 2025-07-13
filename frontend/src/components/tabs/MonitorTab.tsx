@@ -94,11 +94,11 @@ const MonitorTab: React.FC = () => {
           <button
             onClick={() => refetchHealth()}
             disabled={healthLoading || btcLoading}
-            className="p-2 rounded-lg border border-pool-border hover:bg-pool-border transition-colors disabled:opacity-50"
+            className="p-2 bg-citrea-500/10 hover:bg-citrea-500/20 border border-citrea-500/30 text-citrea-400 hover:text-citrea-300 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh data"
           >
             <RefreshCw
-              className={`w-4 h-4 text-pool-muted ${
+              className={`w-4 h-4 ${
                 healthLoading || btcLoading ? "animate-spin" : ""
               }`}
             />

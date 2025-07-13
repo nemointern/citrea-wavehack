@@ -275,7 +275,7 @@ const DarkPoolDashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => setShowOrderBook(!showOrderBook)}
-                className="flex items-center space-x-2 text-sm text-citrea-500 hover:text-citrea-400"
+                className="flex items-center space-x-2 text-sm bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 hover:text-citrea-300 border border-citrea-500/30 px-3 py-1.5 rounded-lg transition-all duration-200"
               >
                 {showOrderBook ? (
                   <>

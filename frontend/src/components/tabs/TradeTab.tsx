@@ -384,7 +384,7 @@ const TradeTab: React.FC = () => {
             <span className="text-sm font-medium">{notification.message}</span>
             <button
               onClick={() => setNotification(null)}
-              className="ml-2 text-pool-muted hover:text-pool-text"
+              className="ml-2 text-citrea-400 hover:text-citrea-300 transition-colors duration-200"
             >
               <X className="w-4 h-4" />
             </button>
@@ -494,7 +494,7 @@ const TradeTab: React.FC = () => {
                         message: "Order fill information refreshed!",
                       });
                     }}
-                    className="text-xs text-citrea-500 hover:text-citrea-400 px-2 py-1 rounded border border-citrea-500/30 flex items-center space-x-1"
+                    className="text-xs bg-citrea-500 hover:bg-citrea-600 text-white px-3 py-1.5 rounded-lg border border-citrea-500 transition-all duration-200 flex items-center space-x-1.5"
                     title="Refresh partial fill information"
                   >
                     <RefreshCw className="w-3 h-3" />
@@ -502,7 +502,7 @@ const TradeTab: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setShowMyOrders(!showMyOrders)}
-                    className="text-sm text-citrea-500 hover:text-citrea-400"
+                    className="text-sm bg-citrea-500/10 border border-citrea-500/30 text-citrea-400 hover:bg-citrea-500/20 hover:text-citrea-300 px-3 py-1.5 rounded-lg transition-all duration-200"
                   >
                     {showMyOrders ? "Hide" : "Show"} ({userOrders.length})
                   </button>
@@ -639,7 +639,7 @@ const TradeTab: React.FC = () => {
                                     });
                                   }
                                 }}
-                                className="text-xs text-citrea-500 hover:text-citrea-400 px-1 py-0.5 rounded border border-citrea-500/30"
+                                className="text-xs bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 hover:text-citrea-300 px-2 py-0.5 rounded border border-citrea-500/30 transition-all duration-200"
                                 title="Fetch order ID from blockchain"
                               >
                                 Refresh ID
@@ -778,7 +778,7 @@ const TradeTab: React.FC = () => {
                                   onClick={() =>
                                     setSelectedOrderForReveal(index)
                                   }
-                                  className="text-xs text-blue-400 hover:text-blue-300"
+                                  className="text-xs bg-citrea-500 hover:bg-citrea-600 text-white px-2 py-0.5 rounded border border-citrea-500 transition-all duration-200 disabled:bg-citrea-500/50 disabled:text-white/50"
                                   disabled={!order.realOrderId}
                                   title={
                                     !order.realOrderId
@@ -796,11 +796,11 @@ const TradeTab: React.FC = () => {
                                     Number(currentBatch.id) &&
                                   cancelOrderMutation.mutate(order.orderId || 0)
                                 }
-                                className={`text-xs transition-colors ${
+                                className={`text-xs px-2 py-0.5 rounded border transition-all duration-200 ${
                                   Number(order.batchId) ===
                                   Number(currentBatch.id)
-                                    ? "text-red-400 hover:text-red-300"
-                                    : "text-gray-500 cursor-not-allowed"
+                                    ? "bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border-red-500/30"
+                                    : "bg-gray-500/10 text-gray-500 border-gray-500/30 cursor-not-allowed"
                                 }`}
                                 disabled={
                                   cancelOrderMutation.isPending ||
@@ -875,10 +875,10 @@ const TradeTab: React.FC = () => {
                   onClick={() =>
                     setOrderForm({ ...orderForm, orderType: "BUY" })
                   }
-                  className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+                  className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
                     orderForm.orderType === "BUY"
-                      ? "bg-green-500 text-white"
-                      : "bg-pool-card border border-pool-border text-pool-muted hover:text-pool-text"
+                      ? "bg-citrea-500 hover:bg-citrea-600 text-white border border-citrea-500"
+                      : "bg-citrea-500/10 border border-citrea-500/30 text-citrea-400 hover:bg-citrea-500/20 hover:text-citrea-300"
                   }`}
                 >
                   <TrendingUp className="w-4 h-4 inline mr-2" />
@@ -889,10 +889,10 @@ const TradeTab: React.FC = () => {
                   onClick={() =>
                     setOrderForm({ ...orderForm, orderType: "SELL" })
                   }
-                  className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+                  className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
                     orderForm.orderType === "SELL"
-                      ? "bg-red-500 text-white"
-                      : "bg-pool-card border border-pool-border text-pool-muted hover:text-pool-text"
+                      ? "bg-citrea-500 hover:bg-citrea-600 text-white border border-citrea-500"
+                      : "bg-citrea-500/10 border border-citrea-500/30 text-citrea-400 hover:bg-citrea-500/20 hover:text-citrea-300"
                   }`}
                 >
                   <TrendingDown className="w-4 h-4 inline mr-2" />
@@ -922,9 +922,9 @@ const TradeTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleSwapTokens}
-                  className="mt-8 p-2 rounded-lg border border-pool-border hover:bg-pool-border transition-colors"
+                  className="mt-8 p-2 rounded-lg bg-citrea-500/10 hover:bg-citrea-500/20 border border-citrea-500/30 transition-all duration-200"
                 >
-                  <ArrowUpDown className="w-4 h-4 text-pool-muted" />
+                  <ArrowUpDown className="w-4 h-4 text-citrea-400" />
                 </button>
 
                 <div className="flex-1">
@@ -1110,7 +1110,7 @@ const TradeTab: React.FC = () => {
                         onClick={() =>
                           navigator.clipboard.writeText(commitHash)
                         }
-                        className="text-green-400 hover:text-green-300"
+                        className="text-citrea-400 hover:text-citrea-300 transition-colors duration-200"
                         title="Copy transaction hash"
                       >
                         <Copy className="w-4 h-4" />
@@ -1119,7 +1119,7 @@ const TradeTab: React.FC = () => {
                         href={`https://explorer.testnet.citrea.xyz/tx/${commitHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-green-400 hover:text-green-300"
+                        className="text-citrea-400 hover:text-citrea-300 transition-colors duration-200"
                         title="View on explorer"
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -1143,7 +1143,7 @@ const TradeTab: React.FC = () => {
                       onClick={() =>
                         navigator.clipboard.writeText(commitmentData.salt)
                       }
-                      className="text-citrea-400 hover:text-citrea-300"
+                      className="text-citrea-400 hover:text-citrea-300 transition-colors duration-200"
                       title="Copy salt"
                     >
                       <Copy className="w-4 h-4" />
@@ -1205,7 +1205,7 @@ const TradeTab: React.FC = () => {
               <button
                 onClick={handleMintWCTRA}
                 disabled={isMinting || isMintConfirming || !address}
-                className="mt-5 px-4 py-2 bg-citrea-500 hover:bg-citrea-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
+                className="mt-5 px-4 py-2 bg-citrea-500 hover:bg-citrea-600 disabled:bg-citrea-500/50 disabled:text-white/50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-all duration-200 flex items-center space-x-2 border border-citrea-500"
               >
                 {isMinting || isMintConfirming ? (
                   <>
@@ -1242,7 +1242,7 @@ const TradeTab: React.FC = () => {
               </h3>
               <button
                 onClick={() => setSelectedOrderForReveal(null)}
-                className="text-pool-muted hover:text-pool-text"
+                className="text-citrea-400 hover:text-citrea-300 transition-colors duration-200"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1292,7 +1292,7 @@ const TradeTab: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedOrderForReveal(null)}
-                  className="flex-1 px-4 py-2 border border-pool-border text-pool-text rounded-lg hover:bg-pool-border transition-colors"
+                  className="flex-1 px-4 py-2 bg-citrea-500/10 border border-citrea-500/30 text-citrea-400 hover:bg-citrea-500/20 hover:text-citrea-300 rounded-lg transition-all duration-200"
                 >
                   Cancel
                 </button>

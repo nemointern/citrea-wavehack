@@ -425,7 +425,7 @@ const PortfolioTab: React.FC = () => {
           </h3>
           <button
             onClick={refreshAllApprovals}
-            className="flex items-center space-x-2 px-3 py-2 bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 rounded-lg transition-colors"
+            className="flex items-center space-x-2 px-3 py-2 bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 hover:text-citrea-300 border border-citrea-500/30 rounded-lg transition-all duration-200"
           >
             <RefreshCw className="w-4 h-4" />
             <span>Refresh</span>
@@ -470,7 +470,7 @@ const PortfolioTab: React.FC = () => {
                     {approvalStates[token].isApproved && (
                       <button
                         onClick={() => revokeApproval(token)}
-                        className="px-3 py-1.5 text-sm border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        className="px-3 py-1.5 text-sm bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 rounded-lg transition-all duration-200"
                       >
                         Revoke
                       </button>
@@ -512,7 +512,7 @@ const PortfolioTab: React.FC = () => {
             <button
               onClick={loadTransactions}
               disabled={isLoadingTxs}
-              className="flex items-center space-x-2 px-3 py-2 bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center space-x-2 px-3 py-2 bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 hover:text-citrea-300 border border-citrea-500/30 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw
                 className={`w-4 h-4 ${isLoadingTxs ? "animate-spin" : ""}`}
@@ -589,10 +589,10 @@ const PortfolioTab: React.FC = () => {
                           href={`https://explorer.testnet.citrea.xyz/tx/${tx.hash}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1 hover:bg-pool-border rounded transition-colors"
+                          className="p-2 bg-citrea-500/10 hover:bg-citrea-500/20 text-citrea-400 hover:text-citrea-300 border border-citrea-500/30 rounded transition-all duration-200"
                           title="View on explorer"
                         >
-                          <ExternalLink className="w-4 h-4 text-pool-muted" />
+                          <ExternalLink className="w-4 h-4" />
                         </a>
                       </div>
                     </div>

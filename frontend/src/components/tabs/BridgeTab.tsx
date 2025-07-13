@@ -398,7 +398,7 @@ const BridgeTab: React.FC = () => {
                               href={`https://blockstream.info/testnet/tx/${request.txHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-citrea-400 hover:text-citrea-300 flex items-center space-x-1"
+                              className="text-citrea-400 hover:text-citrea-300 flex items-center space-x-1 transition-colors duration-200"
                             >
                               <span>{request.txHash.slice(0, 8)}...</span>
                               <ExternalLink className="w-3 h-3" />
@@ -418,7 +418,7 @@ const BridgeTab: React.FC = () => {
                               href={`https://explorer.testnet.citrea.xyz/tx/${request.citreaTxHash}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-citrea-400 hover:text-citrea-300 flex items-center space-x-1"
+                              className="text-citrea-400 hover:text-citrea-300 flex items-center space-x-1 transition-colors duration-200"
                             >
                               <span>{request.citreaTxHash.slice(0, 8)}...</span>
                               <ExternalLink className="w-3 h-3" />
