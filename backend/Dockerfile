@@ -26,6 +26,8 @@ RUN npm install --only=production
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+# Copy source files for Swagger JSDoc comments
+COPY --from=builder /app/src ./src
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs

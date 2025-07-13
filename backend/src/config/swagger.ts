@@ -265,9 +265,23 @@ const swaggerDefinition: SwaggerDefinition = {
   ],
 };
 
+// Determine API file paths based on environment
+const isDevelopment = process.env.NODE_ENV !== "production";
+const apiPaths = isDevelopment
+  ? ["./src/index.ts", "./src/routes/*.ts"]
+  : [
+      // In production, try multiple possible paths
+      "./src/index.ts",
+      "./src/routes/*.ts",
+      "../src/index.ts",
+      "../src/routes/*.ts",
+      "src/index.ts",
+      "src/routes/*.ts",
+    ];
+
 const options = {
   definition: swaggerDefinition,
-  apis: ["./src/index.ts", "./src/routes/*.ts"], // Path to the API files
+  apis: apiPaths,
 };
 
 export const swaggerSpec = swaggerJSDoc(options);
