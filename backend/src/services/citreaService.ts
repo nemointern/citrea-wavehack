@@ -282,6 +282,107 @@ export class CitreaService {
   }
 
   /**
+   * Process matches for a completed batch
+   */
+  async processBatchMatches(batchId: number): Promise<void> {
+    try {
+      console.log(`🎯 Processing matches for batch ${batchId}...`);
+
+      // Get all order IDs from the batch
+      const orderIds = (await this.publicClient.readContract({
+        address: this.contracts.orderBook,
+        abi: ORDERBOOK_ABI,
+        functionName: "getBatchOrderIds",
+        args: [BigInt(batchId)],
+      })) as bigint[];
+
+      console.log(`📋 Found ${orderIds.length} orders in batch ${batchId}`);
+
+      if (orderIds.length === 0) {
+        console.log("⚠️ No orders to process in this batch");
+        return;
+      }
+
+      // Fetch revealed orders
+      const revealedOrders = [];
+      for (const orderId of orderIds) {
+        try {
+          const revealedOrder = (await this.publicClient.readContract({
+            address: this.contracts.orderBook,
+            abi: ORDERBOOK_ABI,
+            functionName: "revealedOrders",
+            args: [orderId],
+          })) as any;
+
+          // Only include orders that were actually revealed (have amount > 0)
+          if (
+            revealedOrder &&
+            revealedOrder.amount &&
+            revealedOrder.amount > 0n
+          ) {
+            revealedOrders.push({
+              orderId: Number(orderId),
+              trader: revealedOrder.trader,
+              tokenA: revealedOrder.tokenA,
+              tokenB: revealedOrder.tokenB,
+              amount: revealedOrder.amount,
+              price: revealedOrder.price,
+              orderType: revealedOrder.orderType === 0 ? "BUY" : "SELL",
+              batchId,
+              timestamp: Date.now(),
+            });
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not fetch order ${orderId}:`, error);
+        }
+      }
+
+      console.log(`✅ Found ${revealedOrders.length} revealed orders to match`);
+
+      if (revealedOrders.length === 0) {
+        console.log("⚠️ No revealed orders to process");
+        return;
+      }
+
+      // Import matching engine (we'll need to get this from the main module)
+      // For now, make a direct API call to the batch processing endpoint
+      const response = await fetch(
+        "http://localhost:3001/api/darkpool/batch/process",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            batchId,
+            orders: revealedOrders.map((order) => ({
+              ...order,
+              amount: order.amount.toString(),
+              price: order.price.toString(),
+            })),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Batch processing failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log(
+        `🎉 Batch ${batchId} processed: ${result.totalMatches} matches executed`
+      );
+
+      if (result.txHash) {
+        console.log(`📈 Matches executed on-chain: ${result.txHash}`);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to process batch ${batchId}:`, error);
+      // Don't throw - we want the system to continue with new batch creation
+    }
+  }
+
+  /**
    * Create a new batch on the OrderBook contract
    */
   async createNewBatch(): Promise<string> {
@@ -348,7 +449,7 @@ export class CitreaService {
         }: ${phase.toUpperCase()} phase, ${timeRemaining}s remaining`
       );
 
-      // Auto-create new batch when current batch reaches processing phase (only once per batch)
+      // Auto-process batch when it reaches processing phase (only once per batch)
       const currentBatchId = Number(result.batchId);
       if (
         phase === "processing" &&
@@ -356,17 +457,20 @@ export class CitreaService {
         currentBatchId >= this.lastProcessedBatch // Changed > to >= to handle batch 0
       ) {
         console.log(
-          `🔄 Batch ${currentBatchId} completed! Auto-creating new batch...`
+          `🔄 Batch ${currentBatchId} completed! Processing matches first...`
         );
         this.lastProcessedBatch = currentBatchId + 1; // Set to next expected batch
 
-        // Note: In production, you'd process matches first, then create new batch
+        // PROCESS MATCHES FIRST, THEN CREATE NEW BATCH
         try {
+          await this.processBatchMatches(currentBatchId);
+
+          // Only create new batch after processing is complete
           const txHash = await this.createNewBatch();
           console.log(`✅ New batch created automatically! TX: ${txHash}`);
           console.log("🔄 Batch cycle continues...");
         } catch (error) {
-          console.error("❌ Failed to auto-create new batch:", error);
+          console.error("❌ Failed to auto-process batch:", error);
           // Reset tracker so it can try again
           this.lastProcessedBatch = currentBatchId;
         }

@@ -954,6 +954,7 @@ const TradeTab: React.FC = () => {
                   <input
                     type="number"
                     step="any"
+                    min="0"
                     value={orderForm.amount}
                     onChange={(e) =>
                       setOrderForm({ ...orderForm, amount: e.target.value })
@@ -977,6 +978,7 @@ const TradeTab: React.FC = () => {
                   <input
                     type="number"
                     step="any"
+                    min="0"
                     value={orderForm.price}
                     onChange={(e) =>
                       setOrderForm({ ...orderForm, price: e.target.value })
