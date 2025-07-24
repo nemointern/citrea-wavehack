@@ -94,6 +94,30 @@ const BridgeTab: React.FC = () => {
     },
   });
 
+  // Mutation for triggering mock deposit (dev/demo only)
+  const triggerMockDepositMutation = useMutation({
+    mutationFn: async (data: { bridgeRequestId: string; amount?: string }) => {
+      const response = await fetch(
+        `${API_BASE_URL}/api/bridge/mock/trigger-deposit`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }
+      );
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to trigger mock deposit");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Refresh user requests to show updated status
+      refetchRequests();
+      queryClient.invalidateQueries({ queryKey: ["bridge-stats"] });
+    },
+  });
+
   const handleCreateBridge = () => {
     if (!walletAddress) return;
 
@@ -159,6 +183,13 @@ const BridgeTab: React.FC = () => {
             </span>
           </div>
         )}
+
+        {/* Demo Mode Banner */}
+        <div className="mt-4 inline-flex items-center space-x-2 px-6 py-3 bg-blue-400/10 border border-blue-400/20 rounded-xl">
+          <span className="text-blue-400 font-medium">
+            Demo Mode: Mock deposits are automatically triggered for testing
+          </span>
+        </div>
       </div>
 
       {/* Main Bridge Interface */}
@@ -304,6 +335,36 @@ const BridgeTab: React.FC = () => {
               <div className="text-sm text-pool-muted whitespace-pre-line">
                 {currentRequest.instructions}
               </div>
+            </div>
+
+            {/* Demo Testing Controls */}
+            <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-6">
+              <h4 className="font-semibold text-pool-text mb-3">
+                Demo Testing Controls
+              </h4>
+              <p className="text-sm text-pool-muted mb-4">
+                For testing purposes, you can manually trigger a mock deposit
+                instead of waiting for the automatic simulation.
+              </p>
+              <button
+                onClick={() => {
+                  triggerMockDepositMutation.mutate({
+                    bridgeRequestId: currentRequest.bridgeRequestId,
+                    amount: "10.5", // Mock amount for testing
+                  });
+                }}
+                disabled={triggerMockDepositMutation.isPending}
+                className="btn-secondary px-4 py-2 text-sm disabled:opacity-50"
+              >
+                {triggerMockDepositMutation.isPending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    Triggering...
+                  </>
+                ) : (
+                  "🚀 Trigger Mock Deposit Now"
+                )}
+              </button>
             </div>
 
             {/* Action Buttons */}

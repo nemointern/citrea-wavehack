@@ -8,6 +8,7 @@ import MatchingEngine from "./services/matchingEngine";
 import CitreaService from "./services/citreaService";
 import BRC20Service from "./services/brc20Service";
 import BridgeService from "./services/bridgeService";
+import MockBridgeService from "./services/mockBridgeService";
 import { CITREA_CONTRACTS } from "./config/contracts";
 import { Address } from "viem";
 import { setupSwagger } from "./swagger-setup";
@@ -28,7 +29,7 @@ let btcMonitor: BTCMonitor;
 let matchingEngine: MatchingEngine;
 let citreaService: CitreaService;
 let brc20Service: BRC20Service;
-let bridgeService: BridgeService;
+let bridgeService: BridgeService | MockBridgeService;
 
 // CORS Configuration for Production
 const getAllowedOrigins = () => {
@@ -584,6 +585,80 @@ app.get("/api/bridge/status", (req: any, res: any) => {
     res.status(500).json({
       error: error instanceof Error ? error.message : String(error),
     });
+  }
+});
+
+/**
+ * @swagger
+ * /api/bridge/mock/trigger-deposit:
+ *   post:
+ *     summary: Trigger mock deposit (Dev/Demo only)
+ *     tags: [Bridge]
+ *     description: Manually trigger a mock deposit for testing purposes (only works with MockBridgeService)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - bridgeRequestId
+ *             properties:
+ *               bridgeRequestId:
+ *                 type: string
+ *                 description: ID of the bridge request to trigger deposit for
+ *               amount:
+ *                 type: string
+ *                 description: Optional amount to deposit (defaults to random)
+ *     responses:
+ *       200:
+ *         description: Mock deposit triggered successfully
+ *       400:
+ *         description: Invalid request or not using mock bridge service
+ *       404:
+ *         description: Bridge request not found
+ *       500:
+ *         description: Internal server error
+ */
+app.post("/api/bridge/mock/trigger-deposit", (req: any, res: any) => {
+  try {
+    const { bridgeRequestId, amount } = req.body;
+
+    if (!bridgeRequestId) {
+      return res.status(400).json({
+        error: "Missing required parameter: bridgeRequestId",
+      });
+    }
+
+    if (!bridgeService) {
+      return res.status(503).json({ error: "Bridge service not initialized" });
+    }
+
+    // Check if using mock bridge service
+    if (!(bridgeService instanceof MockBridgeService)) {
+      return res.status(400).json({
+        error:
+          "Mock deposit trigger is only available with MockBridgeService (development mode)",
+      });
+    }
+
+    const result = bridgeService.triggerMockDeposit(bridgeRequestId, amount);
+    res.json({
+      success: true,
+      message: "Mock deposit triggered",
+      bridgeRequestId,
+      ...result,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("not found")) {
+      res.status(404).json({
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 });
 
@@ -1942,10 +2017,19 @@ async function initializeServices() {
       );
     }
 
-    // Initialize Bridge Service (requires both BRC20 and Citrea services)
-    if (brc20Service && citreaService) {
+    // Initialize Bridge Service - Use Mock Bridge for development/demo
+    const useMockBridge =
+      process.env.NODE_ENV === "development" || !process.env.BRC20_API_KEY;
+
+    if (useMockBridge) {
+      console.log("🌉 Using Mock Bridge Service for development/demo");
+      bridgeService = new MockBridgeService(citreaService);
+      bridgeService.start();
+      console.log("🌉 Mock Bridge service started");
+    } else if (brc20Service && citreaService) {
+      console.log("🌉 Using Real Bridge Service with external APIs");
       bridgeService = new BridgeService(brc20Service, citreaService);
-      await bridgeService.startProcessing();
+      await (bridgeService as BridgeService).startProcessing();
       console.log("🌉 Bridge service started");
     } else {
       console.log("⚠️ Bridge service not started - missing dependencies");
