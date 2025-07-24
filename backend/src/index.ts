@@ -1470,35 +1470,39 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
     const { pair } = req.params;
     const depth = parseInt(req.query.depth as string) || 10;
 
-    if (!pair || !pair.includes('-')) {
+    if (!pair || !pair.includes("-")) {
       return res.status(400).json({
-        error: "Invalid pair format. Use 'TOKEN1-TOKEN2' (e.g., 'wPEPE-nUSD')"
+        error: "Invalid pair format. Use 'TOKEN1-TOKEN2' (e.g., 'wPEPE-nUSD')",
       });
     }
 
-    const [tokenA, tokenB] = pair.split('-');
+    const [tokenA, tokenB] = pair.split("-");
 
     // Get all revealed orders for this pair from all users
     const revealedOrders: UserOrder[] = [];
     for (const [user, orders] of userOrders.entries()) {
-      orders.forEach(order => {
-        if (order.status === "REVEALED" && 
-            ((order.tokenA === tokenA && order.tokenB === tokenB) ||
-             (order.tokenA === tokenB && order.tokenB === tokenA))) {
+      orders.forEach((order) => {
+        if (
+          order.status === "REVEALED" &&
+          ((order.tokenA === tokenA && order.tokenB === tokenB) ||
+            (order.tokenA === tokenB && order.tokenB === tokenA))
+        ) {
           revealedOrders.push(order);
         }
       });
     }
 
     // Separate buy and sell orders
-    const buyOrders = revealedOrders.filter(order => 
-      (order.orderType === "BUY" && order.tokenA === tokenA) ||
-      (order.orderType === "SELL" && order.tokenA === tokenB)
+    const buyOrders = revealedOrders.filter(
+      (order) =>
+        (order.orderType === "BUY" && order.tokenA === tokenA) ||
+        (order.orderType === "SELL" && order.tokenA === tokenB)
     );
-    
-    const sellOrders = revealedOrders.filter(order => 
-      (order.orderType === "SELL" && order.tokenA === tokenA) ||
-      (order.orderType === "BUY" && order.tokenA === tokenB)
+
+    const sellOrders = revealedOrders.filter(
+      (order) =>
+        (order.orderType === "SELL" && order.tokenA === tokenA) ||
+        (order.orderType === "BUY" && order.tokenA === tokenB)
     );
 
     // Aggregate orders by price level
@@ -1509,7 +1513,7 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
     const bids = aggregateBids
       .sort((a, b) => parseFloat(b.price) - parseFloat(a.price))
       .slice(0, depth);
-    
+
     const asks = aggregateAsks
       .sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
       .slice(0, depth);
@@ -1517,13 +1521,13 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
     // Calculate cumulative totals
     let bidTotal = 0;
     let askTotal = 0;
-    
-    bids.forEach(bid => {
+
+    bids.forEach((bid) => {
       bidTotal += parseFloat(bid.amount);
       bid.total = bidTotal.toString();
     });
 
-    asks.forEach(ask => {
+    asks.forEach((ask) => {
       askTotal += parseFloat(ask.amount);
       ask.total = askTotal.toString();
     });
@@ -1537,11 +1541,11 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
       const bidPrice = parseFloat(bestBid);
       const askPrice = parseFloat(bestAsk);
       const absoluteSpread = askPrice - bidPrice;
-      const percentageSpread = ((absoluteSpread / bidPrice) * 100);
-      
+      const percentageSpread = (absoluteSpread / bidPrice) * 100;
+
       spread = {
         absolute: absoluteSpread.toFixed(8),
-        percentage: percentageSpread.toFixed(2)
+        percentage: percentageSpread.toFixed(2),
       };
     }
 
@@ -1549,8 +1553,12 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
     const stats = {
       totalBids: buyOrders.length,
       totalAsks: sellOrders.length,
-      totalBidVolume: buyOrders.reduce((sum, order) => sum + parseFloat(order.amount), 0).toString(),
-      totalAskVolume: sellOrders.reduce((sum, order) => sum + parseFloat(order.amount), 0).toString()
+      totalBidVolume: buyOrders
+        .reduce((sum, order) => sum + parseFloat(order.amount), 0)
+        .toString(),
+      totalAskVolume: sellOrders
+        .reduce((sum, order) => sum + parseFloat(order.amount), 0)
+        .toString(),
     };
 
     res.json({
@@ -1559,9 +1567,8 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
       bids,
       asks,
       spread,
-      stats
+      stats,
     });
-
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : String(error),
@@ -1573,7 +1580,7 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
 function aggregateOrdersByPrice(orders: UserOrder[], isBuy: boolean) {
   const priceMap = new Map<string, { amount: number; orders: number }>();
 
-  orders.forEach(order => {
+  orders.forEach((order) => {
     const price = order.price;
     const amount = parseFloat(order.amount);
 
@@ -1590,7 +1597,7 @@ function aggregateOrdersByPrice(orders: UserOrder[], isBuy: boolean) {
     price,
     amount: data.amount.toString(),
     total: "0", // Will be calculated later
-    orders: data.orders
+    orders: data.orders,
   }));
 }
 

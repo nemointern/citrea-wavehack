@@ -113,7 +113,10 @@ export const apiService = {
   },
 
   // Order book depth
-  async getOrderBookDepth(pair: string, depth: number = 10): Promise<{
+  async getOrderBookDepth(
+    pair: string,
+    depth: number = 10
+  ): Promise<{
     pair: string;
     lastUpdate: string;
     bids: Array<{
@@ -139,7 +142,9 @@ export const apiService = {
       totalAskVolume: string;
     };
   }> {
-    const response = await fetch(`${API_BASE_URL}/darkpool/orderbook/${pair}?depth=${depth}`);
+    const response = await fetch(
+      `${API_BASE_URL}/darkpool/orderbook/${pair}?depth=${depth}`
+    );
     if (!response.ok) throw new Error("Failed to fetch order book depth");
     return response.json();
   },

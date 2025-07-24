@@ -32,6 +32,8 @@ interface OrderBookDepthProps {
   lastUpdate: string;
   isLoading?: boolean;
   compact?: boolean;
+  onPairChange?: (newPair: string) => void;
+  availablePairs?: string[];
 }
 
 const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
@@ -43,6 +45,8 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
   lastUpdate,
   isLoading = false,
   compact = false,
+  onPairChange,
+  availablePairs = ["wPEPE-nUSD", "wCTRA-nUSD", "wPEPE-wCTRA"],
 }) => {
   const formatNumber = (value: string, decimals: number = 6) => {
     const num = parseFloat(value);
@@ -59,8 +63,10 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
   };
 
   const getMaxTotal = () => {
-    const maxBidTotal = bids.length > 0 ? Math.max(...bids.map(b => parseFloat(b.total))) : 0;
-    const maxAskTotal = asks.length > 0 ? Math.max(...asks.map(a => parseFloat(a.total))) : 0;
+    const maxBidTotal =
+      bids.length > 0 ? Math.max(...bids.map((b) => parseFloat(b.total))) : 0;
+    const maxAskTotal =
+      asks.length > 0 ? Math.max(...asks.map((a) => parseFloat(a.total))) : 0;
     return Math.max(maxBidTotal, maxAskTotal);
   };
 
@@ -90,9 +96,27 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
             <BarChart3 className="w-5 h-5 text-citrea-500" />
             <h3 className="text-lg font-semibold text-pool-text">Order Book</h3>
           </div>
-          <div className="px-2 py-1 bg-citrea-500/10 border border-citrea-500/30 rounded text-xs text-citrea-400 font-medium">
-            {pair}
-          </div>
+          {onPairChange ? (
+            <select
+              value={pair}
+              onChange={(e) => onPairChange(e.target.value)}
+              className="px-2 py-1 bg-citrea-500/10 border border-citrea-500/30 rounded text-xs text-citrea-400 font-medium focus:outline-none focus:border-citrea-500"
+            >
+              {availablePairs.map((p) => (
+                <option
+                  key={p}
+                  value={p}
+                  className="bg-pool-card text-pool-text"
+                >
+                  {p}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="px-2 py-1 bg-citrea-500/10 border border-citrea-500/30 rounded text-xs text-citrea-400 font-medium">
+              {pair}
+            </div>
+          )}
         </div>
         <div className="text-xs text-pool-muted">
           Last update: {new Date(lastUpdate).toLocaleTimeString()}
@@ -108,7 +132,9 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
                 <TrendingUp className="w-4 h-4 text-green-400" />
                 <span className="text-sm text-green-400 font-medium">Bids</span>
               </div>
-              <span className="text-xs text-pool-muted">{stats.totalBids} orders</span>
+              <span className="text-xs text-pool-muted">
+                {stats.totalBids} orders
+              </span>
             </div>
             <div className="text-sm text-pool-text font-medium">
               {formatVolume(stats.totalBidVolume)}
@@ -120,7 +146,9 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
                 <TrendingDown className="w-4 h-4 text-red-400" />
                 <span className="text-sm text-red-400 font-medium">Asks</span>
               </div>
-              <span className="text-xs text-pool-muted">{stats.totalAsks} orders</span>
+              <span className="text-xs text-pool-muted">
+                {stats.totalAsks} orders
+              </span>
             </div>
             <div className="text-sm text-pool-text font-medium">
               {formatVolume(stats.totalAskVolume)}
@@ -135,7 +163,9 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <ArrowUpDown className="w-4 h-4 text-citrea-400" />
-              <span className="text-sm text-citrea-400 font-medium">Spread</span>
+              <span className="text-sm text-citrea-400 font-medium">
+                Spread
+              </span>
             </div>
             <div className="text-right">
               <div className="text-sm text-pool-text font-medium">
@@ -170,36 +200,40 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
             </div>
           ) : (
             <div className="space-y-1 max-h-32 overflow-y-auto">
-              {asks.slice().reverse().map((ask, index) => {
-                const fillPercentage = maxTotal > 0 ? (parseFloat(ask.total) / maxTotal) * 100 : 0;
-                return (
-                  <div
-                    key={`ask-${index}`}
-                    className="relative grid grid-cols-4 gap-2 text-xs py-1 px-2 rounded hover:bg-red-500/5 transition-colors duration-200"
-                  >
-                    {/* Background fill */}
+              {asks
+                .slice()
+                .reverse()
+                .map((ask, index) => {
+                  const fillPercentage =
+                    maxTotal > 0 ? (parseFloat(ask.total) / maxTotal) * 100 : 0;
+                  return (
                     <div
-                      className="absolute left-0 top-0 h-full bg-red-500/10 rounded"
-                      style={{ width: `${fillPercentage}%` }}
-                    ></div>
-                    
-                    {/* Content */}
-                    <div className="relative text-red-400 font-medium">
-                      {formatNumber(ask.price, 6)}
+                      key={`ask-${index}`}
+                      className="relative grid grid-cols-4 gap-2 text-xs py-1 px-2 rounded hover:bg-red-500/5 transition-colors duration-200"
+                    >
+                      {/* Background fill */}
+                      <div
+                        className="absolute left-0 top-0 h-full bg-red-500/10 rounded"
+                        style={{ width: `${fillPercentage}%` }}
+                      ></div>
+
+                      {/* Content */}
+                      <div className="relative text-red-400 font-medium">
+                        {formatNumber(ask.price, 6)}
+                      </div>
+                      <div className="relative text-right text-pool-text">
+                        {formatVolume(ask.amount)}
+                      </div>
+                      <div className="relative text-right text-pool-muted">
+                        {formatVolume(ask.total)}
+                      </div>
+                      <div className="relative text-right text-pool-muted flex items-center justify-end space-x-1">
+                        <Users className="w-3 h-3" />
+                        <span>{ask.orders}</span>
+                      </div>
                     </div>
-                    <div className="relative text-right text-pool-text">
-                      {formatVolume(ask.amount)}
-                    </div>
-                    <div className="relative text-right text-pool-muted">
-                      {formatVolume(ask.total)}
-                    </div>
-                    <div className="relative text-right text-pool-muted flex items-center justify-end space-x-1">
-                      <Users className="w-3 h-3" />
-                      <span>{ask.orders}</span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </div>
@@ -229,7 +263,8 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
           ) : (
             <div className="space-y-1 max-h-32 overflow-y-auto">
               {bids.map((bid, index) => {
-                const fillPercentage = maxTotal > 0 ? (parseFloat(bid.total) / maxTotal) * 100 : 0;
+                const fillPercentage =
+                  maxTotal > 0 ? (parseFloat(bid.total) / maxTotal) * 100 : 0;
                 return (
                   <div
                     key={`bid-${index}`}
@@ -240,7 +275,7 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
                       className="absolute left-0 top-0 h-full bg-green-500/10 rounded"
                       style={{ width: `${fillPercentage}%` }}
                     ></div>
-                    
+
                     {/* Content */}
                     <div className="relative text-green-400 font-medium">
                       {formatNumber(bid.price, 6)}
@@ -267,9 +302,12 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
       {bids.length === 0 && asks.length === 0 && (
         <div className="text-center py-8">
           <Activity className="w-8 h-8 text-pool-muted mx-auto mb-3" />
-          <div className="text-sm text-pool-muted mb-2">No orders revealed yet</div>
+          <div className="text-sm text-pool-muted mb-2">
+            No orders revealed yet
+          </div>
           <div className="text-xs text-pool-muted">
-            Orders will appear here once traders reveal them during the REVEAL phase
+            Orders will appear here once traders reveal them during the REVEAL
+            phase
           </div>
         </div>
       )}

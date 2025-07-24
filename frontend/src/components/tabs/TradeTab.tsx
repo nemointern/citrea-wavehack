@@ -78,6 +78,8 @@ const TradeTab: React.FC = () => {
   const [selectedOrderForReveal, setSelectedOrderForReveal] = useState<
     number | null
   >(null);
+  const [selectedOrderBookPair, setSelectedOrderBookPair] =
+    useState("wPEPE-nUSD");
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "info";
     message: string;
@@ -170,15 +172,13 @@ const TradeTab: React.FC = () => {
     refetchInterval: 5000,
   });
 
-  // Order book depth query for the current trading pair
-  const currentPair = `${orderForm.tokenA}-${orderForm.tokenB}`;
+  // Order book depth query for the selected trading pair
   const { data: orderBookData, isLoading: orderBookLoading } = useQuery({
-    queryKey: ["order-book-depth", currentPair],
-    queryFn: () => apiService.getOrderBookDepth(currentPair, 10),
+    queryKey: ["order-book-depth", selectedOrderBookPair],
+    queryFn: () => apiService.getOrderBookDepth(selectedOrderBookPair, 10),
     refetchInterval: 3000, // Update every 3 seconds
-    enabled: currentPair.includes('-'), // Only fetch if we have a valid pair
+    enabled: selectedOrderBookPair.includes("-"), // Only fetch if we have a valid pair
   });
-
   const cancelOrderMutation = useMutation({
     mutationFn: apiService.cancelOrder,
     onSuccess: () => {
@@ -865,19 +865,23 @@ const TradeTab: React.FC = () => {
         {/* Order Book Depth */}
         <div className="lg:col-span-1">
           <OrderBookDepth
-            pair={currentPair}
+            pair={selectedOrderBookPair}
             bids={orderBookData?.bids || []}
             asks={orderBookData?.asks || []}
             spread={orderBookData?.spread || null}
-            stats={orderBookData?.stats || {
-              totalBids: 0,
-              totalAsks: 0,
-              totalBidVolume: "0",
-              totalAskVolume: "0"
-            }}
+            stats={
+              orderBookData?.stats || {
+                totalBids: 0,
+                totalAsks: 0,
+                totalBidVolume: "0",
+                totalAskVolume: "0",
+              }
+            }
             lastUpdate={orderBookData?.lastUpdate || new Date().toISOString()}
             isLoading={orderBookLoading}
             compact={false}
+            onPairChange={setSelectedOrderBookPair}
+            availablePairs={["wPEPE-nUSD", "wCTRA-nUSD", "wPEPE-wCTRA"]}
           />
         </div>
 
