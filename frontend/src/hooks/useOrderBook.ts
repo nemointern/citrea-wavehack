@@ -10,6 +10,7 @@ import {
 import { keccak256, encodePacked, parseEther, decodeEventLog } from "viem";
 import { abi as ORDERBOOK_ABI } from "../../../contracts/out/OrderBook.sol/OrderBook.json";
 import { getOrderBookAddress, getAllTokenAddresses } from "../config/addresses";
+import { apiService } from "../services/api";
 
 const ORDERBOOK_ADDRESS = getOrderBookAddress();
 
@@ -39,7 +40,8 @@ interface OrderWithFillInfo {
     | "REVEALED"
     | "MATCHED"
     | "PARTIALLY_FILLED"
-    | "FULLY_EXECUTED";
+    | "FULLY_EXECUTED"
+    | "CANCELLED";
   commitHash: string;
   salt: string;
   timestamp: number;
@@ -835,6 +837,54 @@ export function useOrderBook() {
     };
   }, [userOrders, publicClient, refreshAllOrderFillInfo]);
 
+  // Cancel order function with smart contract support
+  const cancelOrder = async (orderIndex: number) => {
+    if (!address) {
+      throw new Error("Wallet not connected");
+    }
+
+    if (orderIndex < 0 || orderIndex >= userOrders.length) {
+      throw new Error("Invalid order index");
+    }
+
+    const order = userOrders[orderIndex];
+
+    // Check if order can be cancelled
+    if (
+      order.status === "MATCHED" ||
+      order.status === "PARTIALLY_FILLED" ||
+      order.status === "FULLY_EXECUTED"
+    ) {
+      throw new Error("Cannot cancel executed or matched orders");
+    }
+
+    if (order.status === "CANCELLED") {
+      throw new Error("Order is already cancelled");
+    }
+
+    try {
+      // For now, we'll use the API to cancel orders
+      // In the future, this could include smart contract cancellation
+      const result = await apiService.cancelOrder(order.orderId || 0, address);
+
+      // Update the order status locally
+      const updatedOrders = [...userOrders];
+      updatedOrders[orderIndex] = {
+        ...order,
+        status: "CANCELLED",
+        timestamp: Date.now(),
+      };
+
+      setUserOrders(updatedOrders);
+
+      console.log(`✅ Order ${order.orderId} cancelled successfully`);
+      return result;
+    } catch (error) {
+      console.error(`❌ Failed to cancel order ${order.orderId}:`, error);
+      throw error;
+    }
+  };
+
   return {
     // States
     commitmentData,
@@ -847,6 +897,7 @@ export function useOrderBook() {
     refetchBatch,
     clearOrders,
     refreshOrderId,
+    cancelOrder,
 
     // New Partial Fill Functions
     getRemainingAmount,

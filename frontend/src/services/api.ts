@@ -227,18 +227,23 @@ export const apiService = {
   },
 
   async cancelOrder(
-    orderId: number
-  ): Promise<{ success: boolean; message: string }> {
+    orderId: number,
+    userAddress?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    onChainCancelled?: boolean;
+  }> {
     const response = await fetch(`${API_BASE_URL}/darkpool/order/cancel`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId }),
+      body: JSON.stringify({ orderId, userAddress }),
     });
 
     if (!response.ok) {
       const error = await response.json();
       throw new Error(
-        error.message || `Failed to cancel order: ${response.statusText}`
+        error.error || `Failed to cancel order: ${response.statusText}`
       );
     }
 

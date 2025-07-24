@@ -6,6 +6,7 @@ import {
   Clock,
   TrendingUp,
   Target,
+  X,
 } from "lucide-react";
 
 interface OrderStatusBadgeProps {
@@ -14,7 +15,8 @@ interface OrderStatusBadgeProps {
     | "REVEALED"
     | "MATCHED"
     | "PARTIALLY_FILLED"
-    | "FULLY_EXECUTED";
+    | "FULLY_EXECUTED"
+    | "CANCELLED";
   fillPercentage?: number;
   compact?: boolean;
   showIcon?: boolean;
@@ -78,6 +80,16 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({
           textColor: "text-emerald-400",
           borderColor: "border-emerald-500/30",
           description: "Order fully executed (100%)",
+        };
+
+      case "CANCELLED":
+        return {
+          icon: X,
+          label: compact ? "Cancelled" : "Cancelled",
+          bgColor: "bg-red-500/20",
+          textColor: "text-red-400",
+          borderColor: "border-red-500/30",
+          description: "Order has been cancelled",
         };
 
       default:

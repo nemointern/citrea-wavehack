@@ -1087,7 +1087,14 @@ interface UserOrder {
   amount: string;
   price: string;
   orderType: "BUY" | "SELL";
-  status: "COMMITTED" | "REVEALED" | "MATCHED" | "FAILED";
+  status:
+    | "COMMITTED"
+    | "REVEALED"
+    | "MATCHED"
+    | "FAILED"
+    | "CANCELLED"
+    | "PARTIALLY_FILLED"
+    | "FULLY_EXECUTED";
   commitHash?: string;
   salt?: string;
   timestamp: number;
@@ -1724,50 +1731,136 @@ app.post("/api/darkpool/order/reveal", async (req: any, res: any) => {
   }
 });
 
-app.post("/api/darkpool/order/cancel", (req: any, res: any) => {
+app.post("/api/darkpool/order/cancel", async (req: any, res: any) => {
   try {
-    const { orderId } = req.body;
+    const { orderId, userAddress } = req.body;
 
     if (!orderId) {
       return res.status(400).json({ error: "Missing orderId parameter" });
     }
 
-    // Find and remove the order
-    let found = false;
+    // Find the order
+    let foundOrder: UserOrder | null = null;
+    let userKey: string | null = null;
+    let orderIndex: number = -1;
 
     for (const [user, orders] of userOrders.entries()) {
-      const orderIndex = orders.findIndex((o) => o.orderId === orderId);
-      if (orderIndex !== -1) {
-        const order = orders[orderIndex];
-
-        if (order.status === "MATCHED") {
-          return res.status(400).json({
-            error: "Cannot cancel matched order",
-          });
-        }
-
-        orders.splice(orderIndex, 1);
-        found = true;
-
-        console.log(`❌ Order cancelled: ${orderId}`);
+      const index = orders.findIndex((o) => o.orderId === orderId);
+      if (index !== -1) {
+        foundOrder = orders[index];
+        userKey = user;
+        orderIndex = index;
         break;
       }
     }
 
-    if (!found) {
+    if (!foundOrder || !userKey || orderIndex === -1) {
       return res.status(404).json({ error: "Order not found" });
     }
+
+    // Check if user is authorized to cancel this order
+    if (userAddress && foundOrder.trader !== userAddress) {
+      return res.status(403).json({
+        error: "Unauthorized: You can only cancel your own orders",
+      });
+    }
+
+    // Check order status - can only cancel COMMITTED or REVEALED orders
+    if (foundOrder.status === "MATCHED") {
+      return res.status(400).json({
+        error: "Cannot cancel matched order",
+      });
+    }
+
+    if (
+      foundOrder.status === "PARTIALLY_FILLED" ||
+      foundOrder.status === "FULLY_EXECUTED"
+    ) {
+      return res.status(400).json({
+        error: "Cannot cancel order that has been executed",
+      });
+    }
+
+    // Get current batch to check if cancellation is allowed
+    const currentBatch = await getCurrentBatchStatus();
+
+    // Only allow cancellation in the same batch and during COMMIT/REVEAL phases
+    if (Number(foundOrder.batchId) !== Number(currentBatch.batchId)) {
+      return res.status(400).json({
+        error: "Cannot cancel orders from previous batches",
+      });
+    }
+
+    if (currentBatch.phase === "EXECUTE") {
+      return res.status(400).json({
+        error: "Cannot cancel orders during execution phase",
+      });
+    }
+
+    // If smart contracts are available, try to cancel on-chain
+    let onChainCancelled = false;
+    if (citreaService && foundOrder.status === "COMMITTED") {
+      try {
+        // For committed orders, we would need a smart contract cancellation function
+        // Since we don't have one implemented, we'll just mark it as cancelled locally
+        console.log(
+          `⚠️ Smart contract cancellation not implemented yet for order ${orderId}`
+        );
+      } catch (contractError) {
+        console.error("❌ Smart contract cancellation failed:", contractError);
+        // Continue with local cancellation if contract fails
+      }
+    }
+
+    // Mark order as cancelled (don't remove, just update status)
+    foundOrder.status = "CANCELLED" as any;
+    foundOrder.timestamp = Date.now(); // Update timestamp
+
+    console.log(`❌ Order cancelled: ${orderId} by ${foundOrder.trader}`);
 
     res.json({
       success: true,
       message: `Order ${orderId} cancelled successfully`,
+      onChainCancelled,
+      order: {
+        orderId: foundOrder.orderId,
+        batchId: foundOrder.batchId,
+        status: foundOrder.status,
+        timestamp: foundOrder.timestamp,
+      },
     });
   } catch (error) {
+    console.error("❌ Error cancelling order:", error);
     res.status(500).json({
       error: error instanceof Error ? error.message : String(error),
     });
   }
 });
+
+// Helper function to get current batch status
+async function getCurrentBatchStatus() {
+  try {
+    if (citreaService) {
+      return await citreaService.getCurrentBatch();
+    } else {
+      // Fallback to demo mode
+      return {
+        batchId: 1,
+        phase: "COMMIT",
+        timeRemaining: 300,
+        ordersCommitted: 0,
+      };
+    }
+  } catch (error) {
+    console.error("Error getting batch status:", error);
+    return {
+      batchId: 1,
+      phase: "COMMIT",
+      timeRemaining: 300,
+      ordersCommitted: 0,
+    };
+  }
+}
 
 // Test routes
 app.get("/api/test/contracts", async (req: any, res: any) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   useAccount,
   useWriteContract,
@@ -60,6 +60,7 @@ const TradeTab: React.FC = () => {
     commitError,
     refreshOrderId,
     refreshAllOrderFillInfo,
+    cancelOrder,
   } = useOrderBook();
 
   // Token approvals hook
@@ -178,21 +179,6 @@ const TradeTab: React.FC = () => {
     queryFn: () => apiService.getOrderBookDepth(selectedOrderBookPair, 10),
     refetchInterval: 3000, // Update every 3 seconds
     enabled: selectedOrderBookPair.includes("-"), // Only fetch if we have a valid pair
-  });
-  const cancelOrderMutation = useMutation({
-    mutationFn: apiService.cancelOrder,
-    onSuccess: () => {
-      setNotification({
-        type: "success",
-        message: "Order cancelled successfully!",
-      });
-    },
-    onError: (error: Error) => {
-      setNotification({
-        type: "error",
-        message: `Failed to cancel order: ${error.message}`,
-      });
-    },
   });
 
   // Auto-hide notifications
@@ -801,11 +787,30 @@ const TradeTab: React.FC = () => {
                               )}
                             {order.status === "COMMITTED" && (
                               <button
-                                onClick={() =>
-                                  Number(order.batchId) ===
-                                    Number(currentBatch.id) &&
-                                  cancelOrderMutation.mutate(order.orderId || 0)
-                                }
+                                onClick={async () => {
+                                  if (
+                                    Number(order.batchId) ===
+                                    Number(currentBatch.id)
+                                  ) {
+                                    try {
+                                      await cancelOrder(index);
+                                      setNotification({
+                                        type: "success",
+                                        message:
+                                          "Order cancelled successfully!",
+                                      });
+                                    } catch (error) {
+                                      setNotification({
+                                        type: "error",
+                                        message: `Failed to cancel order: ${
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Unknown error"
+                                        }`,
+                                      });
+                                    }
+                                  }
+                                }}
                                 className={`text-xs px-2 py-0.5 rounded border transition-all duration-200 ${
                                   Number(order.batchId) ===
                                   Number(currentBatch.id)
@@ -813,7 +818,7 @@ const TradeTab: React.FC = () => {
                                     : "bg-gray-500/10 text-gray-500 border-gray-500/30 cursor-not-allowed"
                                 }`}
                                 disabled={
-                                  cancelOrderMutation.isPending ||
+                                  isCommitPending ||
                                   Number(order.batchId) !==
                                     Number(currentBatch.id)
                                 }
