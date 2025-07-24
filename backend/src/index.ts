@@ -32,27 +32,56 @@ let bridgeService: BridgeService;
 
 // CORS Configuration for Production
 const getAllowedOrigins = () => {
-  if (process.env.NODE_ENV === "production") {
-    const origins = [
-      "https://nocturne-ivory.vercel.app",
-      /\.vercel\.app$/,
-      /\.netlify\.app$/,
-    ];
+  // Always include the production frontend URL and common development URLs
+  const origins = [
+    "https://nocturne-ivory.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    /\.vercel\.app$/,
+    /\.netlify\.app$/,
+  ];
 
-    // Add custom origins from environment variable
-    if (process.env.ALLOWED_ORIGINS) {
-      const customOrigins = process.env.ALLOWED_ORIGINS.split(",");
-      origins.push(...customOrigins);
-    }
-
-    return origins;
+  // Add custom origins from environment variable
+  if (process.env.ALLOWED_ORIGINS) {
+    const customOrigins = process.env.ALLOWED_ORIGINS.split(",").map((origin) =>
+      origin.trim()
+    );
+    origins.push(...customOrigins);
   }
 
-  return ["http://localhost:5173", "http://localhost:3000"];
+  console.log("🌐 Allowed CORS origins:", origins);
+  return origins;
 };
 
 const corsOptions = {
-  origin: getAllowedOrigins(),
+  origin: function (origin, callback) {
+    const allowedOrigins = getAllowedOrigins();
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log("🌐 CORS: Request with no origin allowed");
+      return callback(null, true);
+    }
+
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some((allowedOrigin) => {
+      if (typeof allowedOrigin === "string") {
+        return allowedOrigin === origin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+
+    if (isAllowed) {
+      console.log(`🌐 CORS: Origin ${origin} allowed`);
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS: Origin ${origin} not allowed`);
+      console.warn(`⚠️ CORS: Allowed origins:`, allowedOrigins);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -65,6 +94,7 @@ const corsOptions = {
     "Cache-Control",
     "X-Cache-Date",
   ],
+  preflightContinue: false,
 };
 
 // Middleware
@@ -1646,6 +1676,8 @@ async function initializeServices() {
 // Start server
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+  console.log(`🌐 CORS Origins:`, getAllowedOrigins());
   await initializeServices();
 });
 
