@@ -1358,6 +1358,242 @@ app.get("/api/darkpool/orders/user/:userAddress", (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/darkpool/orderbook/{pair}:
+ *   get:
+ *     summary: Get order book depth for a trading pair
+ *     tags: [Dark Pool]
+ *     description: Returns aggregated order book depth for revealed orders in the current batch
+ *     parameters:
+ *       - in: path
+ *         name: pair
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Trading pair (e.g., "wPEPE-nUSD")
+ *         example: "wPEPE-nUSD"
+ *       - in: query
+ *         name: depth
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of price levels to return
+ *         example: 10
+ *     responses:
+ *       200:
+ *         description: Order book depth data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 pair:
+ *                   type: string
+ *                   example: "wPEPE-nUSD"
+ *                 lastUpdate:
+ *                   type: string
+ *                   format: date-time
+ *                 bids:
+ *                   type: array
+ *                   description: Buy orders (highest price first)
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       price:
+ *                         type: string
+ *                         example: "0.000123"
+ *                       amount:
+ *                         type: string
+ *                         example: "1000000"
+ *                       total:
+ *                         type: string
+ *                         example: "1000000"
+ *                       orders:
+ *                         type: integer
+ *                         example: 3
+ *                 asks:
+ *                   type: array
+ *                   description: Sell orders (lowest price first)
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       price:
+ *                         type: string
+ *                         example: "0.000125"
+ *                       amount:
+ *                         type: string
+ *                         example: "500000"
+ *                       total:
+ *                         type: string
+ *                         example: "1500000"
+ *                       orders:
+ *                         type: integer
+ *                         example: 2
+ *                 spread:
+ *                   type: object
+ *                   properties:
+ *                     absolute:
+ *                       type: string
+ *                       example: "0.000002"
+ *                     percentage:
+ *                       type: string
+ *                       example: "1.61"
+ *                 stats:
+ *                   type: object
+ *                   properties:
+ *                     totalBids:
+ *                       type: integer
+ *                       example: 5
+ *                     totalAsks:
+ *                       type: integer
+ *                       example: 3
+ *                     totalBidVolume:
+ *                       type: string
+ *                       example: "2500000"
+ *                     totalAskVolume:
+ *                       type: string
+ *                       example: "1200000"
+ *       400:
+ *         description: Invalid trading pair format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Invalid pair format. Use 'TOKEN1-TOKEN2'"
+ */
+app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
+  try {
+    const { pair } = req.params;
+    const depth = parseInt(req.query.depth as string) || 10;
+
+    if (!pair || !pair.includes('-')) {
+      return res.status(400).json({
+        error: "Invalid pair format. Use 'TOKEN1-TOKEN2' (e.g., 'wPEPE-nUSD')"
+      });
+    }
+
+    const [tokenA, tokenB] = pair.split('-');
+
+    // Get all revealed orders for this pair from all users
+    const revealedOrders: UserOrder[] = [];
+    for (const [user, orders] of userOrders.entries()) {
+      orders.forEach(order => {
+        if (order.status === "REVEALED" && 
+            ((order.tokenA === tokenA && order.tokenB === tokenB) ||
+             (order.tokenA === tokenB && order.tokenB === tokenA))) {
+          revealedOrders.push(order);
+        }
+      });
+    }
+
+    // Separate buy and sell orders
+    const buyOrders = revealedOrders.filter(order => 
+      (order.orderType === "BUY" && order.tokenA === tokenA) ||
+      (order.orderType === "SELL" && order.tokenA === tokenB)
+    );
+    
+    const sellOrders = revealedOrders.filter(order => 
+      (order.orderType === "SELL" && order.tokenA === tokenA) ||
+      (order.orderType === "BUY" && order.tokenA === tokenB)
+    );
+
+    // Aggregate orders by price level
+    const aggregateBids = aggregateOrdersByPrice(buyOrders, true);
+    const aggregateAsks = aggregateOrdersByPrice(sellOrders, false);
+
+    // Sort and limit depth
+    const bids = aggregateBids
+      .sort((a, b) => parseFloat(b.price) - parseFloat(a.price))
+      .slice(0, depth);
+    
+    const asks = aggregateAsks
+      .sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
+      .slice(0, depth);
+
+    // Calculate cumulative totals
+    let bidTotal = 0;
+    let askTotal = 0;
+    
+    bids.forEach(bid => {
+      bidTotal += parseFloat(bid.amount);
+      bid.total = bidTotal.toString();
+    });
+
+    asks.forEach(ask => {
+      askTotal += parseFloat(ask.amount);
+      ask.total = askTotal.toString();
+    });
+
+    // Calculate spread
+    const bestBid = bids[0]?.price;
+    const bestAsk = asks[0]?.price;
+    let spread = null;
+
+    if (bestBid && bestAsk) {
+      const bidPrice = parseFloat(bestBid);
+      const askPrice = parseFloat(bestAsk);
+      const absoluteSpread = askPrice - bidPrice;
+      const percentageSpread = ((absoluteSpread / bidPrice) * 100);
+      
+      spread = {
+        absolute: absoluteSpread.toFixed(8),
+        percentage: percentageSpread.toFixed(2)
+      };
+    }
+
+    // Calculate stats
+    const stats = {
+      totalBids: buyOrders.length,
+      totalAsks: sellOrders.length,
+      totalBidVolume: buyOrders.reduce((sum, order) => sum + parseFloat(order.amount), 0).toString(),
+      totalAskVolume: sellOrders.reduce((sum, order) => sum + parseFloat(order.amount), 0).toString()
+    };
+
+    res.json({
+      pair,
+      lastUpdate: new Date().toISOString(),
+      bids,
+      asks,
+      spread,
+      stats
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// Helper function to aggregate orders by price level
+function aggregateOrdersByPrice(orders: UserOrder[], isBuy: boolean) {
+  const priceMap = new Map<string, { amount: number; orders: number }>();
+
+  orders.forEach(order => {
+    const price = order.price;
+    const amount = parseFloat(order.amount);
+
+    if (priceMap.has(price)) {
+      const existing = priceMap.get(price)!;
+      existing.amount += amount;
+      existing.orders += 1;
+    } else {
+      priceMap.set(price, { amount, orders: 1 });
+    }
+  });
+
+  return Array.from(priceMap.entries()).map(([price, data]) => ({
+    price,
+    amount: data.amount.toString(),
+    total: "0", // Will be calculated later
+    orders: data.orders
+  }));
+}
+
 app.post("/api/darkpool/order/reveal", async (req: any, res: any) => {
   try {
     const { orderId, salt, amount, price } = req.body;

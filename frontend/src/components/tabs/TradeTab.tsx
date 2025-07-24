@@ -35,6 +35,7 @@ import ApprovalButton from "../ApprovalButton";
 import ApprovalStatus from "../ApprovalStatus";
 import OrderFillProgress from "../OrderFillProgress";
 import OrderStatusBadge from "../OrderStatusBadge";
+import OrderBookDepth from "../OrderBookDepth";
 
 interface OrderFormData {
   tokenA: string;
@@ -167,6 +168,15 @@ const TradeTab: React.FC = () => {
     queryKey: ["current-batch"],
     queryFn: apiService.getCurrentBatch,
     refetchInterval: 5000,
+  });
+
+  // Order book depth query for the current trading pair
+  const currentPair = `${orderForm.tokenA}-${orderForm.tokenB}`;
+  const { data: orderBookData, isLoading: orderBookLoading } = useQuery({
+    queryKey: ["order-book-depth", currentPair],
+    queryFn: () => apiService.getOrderBookDepth(currentPair, 10),
+    refetchInterval: 3000, // Update every 3 seconds
+    enabled: currentPair.includes('-'), // Only fetch if we have a valid pair
   });
 
   const cancelOrderMutation = useMutation({
@@ -852,8 +862,27 @@ const TradeTab: React.FC = () => {
           )}
         </div>
 
+        {/* Order Book Depth */}
+        <div className="lg:col-span-1">
+          <OrderBookDepth
+            pair={currentPair}
+            bids={orderBookData?.bids || []}
+            asks={orderBookData?.asks || []}
+            spread={orderBookData?.spread || null}
+            stats={orderBookData?.stats || {
+              totalBids: 0,
+              totalAsks: 0,
+              totalBidVolume: "0",
+              totalAskVolume: "0"
+            }}
+            lastUpdate={orderBookData?.lastUpdate || new Date().toISOString()}
+            isLoading={orderBookLoading}
+            compact={false}
+          />
+        </div>
+
         {/* Order Form */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-1">
           {/* Test Utilities */}
 
           <div className="glass-card p-6">

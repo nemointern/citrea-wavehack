@@ -112,6 +112,38 @@ export const apiService = {
     return response.json();
   },
 
+  // Order book depth
+  async getOrderBookDepth(pair: string, depth: number = 10): Promise<{
+    pair: string;
+    lastUpdate: string;
+    bids: Array<{
+      price: string;
+      amount: string;
+      total: string;
+      orders: number;
+    }>;
+    asks: Array<{
+      price: string;
+      amount: string;
+      total: string;
+      orders: number;
+    }>;
+    spread: {
+      absolute: string;
+      percentage: string;
+    } | null;
+    stats: {
+      totalBids: number;
+      totalAsks: number;
+      totalBidVolume: string;
+      totalAskVolume: string;
+    };
+  }> {
+    const response = await fetch(`${API_BASE_URL}/darkpool/orderbook/${pair}?depth=${depth}`);
+    if (!response.ok) throw new Error("Failed to fetch order book depth");
+    return response.json();
+  },
+
   // Order management
   async submitOrder(order: {
     tokenA: string;
