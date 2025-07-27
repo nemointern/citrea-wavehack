@@ -7,7 +7,7 @@
 
 // Update this URL with your AWS backend URL after deployment
 const PRODUCTION_BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-const DEVELOPMENT_BACKEND_URL = "https://nocturne-a986bdcb1662.herokuapp.com";
+const DEVELOPMENT_BACKEND_URL = "http://localhost:3001";
 
 export const API_BASE_URL = import.meta.env.PROD
   ? PRODUCTION_BACKEND_URL

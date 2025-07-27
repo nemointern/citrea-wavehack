@@ -46,7 +46,7 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
   isLoading = false,
   compact = false,
   onPairChange,
-  availablePairs = ["wPEPE-nUSD", "wCTRA-nUSD", "wPEPE-wCTRA"],
+  availablePairs = ["wCTRA-nUSD", "wPEPE-nUSD", "wPEPE-wCTRA"],
 }) => {
   const formatNumber = (value: string, decimals: number = 6) => {
     const num = parseFloat(value);
@@ -311,14 +311,6 @@ const OrderBookDepth: React.FC<OrderBookDepthProps> = ({
           </div>
         </div>
       )}
-
-      {/* Real-time indicator */}
-      <div className="flex items-center justify-center mt-4 pt-4 border-t border-pool-border">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          <span className="text-xs text-pool-muted">Real-time data</span>
-        </div>
-      </div>
     </div>
   );
 };

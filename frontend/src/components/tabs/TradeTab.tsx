@@ -68,7 +68,7 @@ const TradeTab: React.FC = () => {
 
   // Form state
   const [orderForm, setOrderForm] = useState<OrderFormData>({
-    tokenA: "wPEPE",
+    tokenA: "wCTRA",
     tokenB: "nUSD",
     amount: "",
     price: "",
@@ -80,7 +80,7 @@ const TradeTab: React.FC = () => {
     number | null
   >(null);
   const [selectedOrderBookPair, setSelectedOrderBookPair] =
-    useState("wPEPE-nUSD");
+    useState("wCTRA-nUSD");
   const [notification, setNotification] = useState<{
     type: "success" | "error" | "info";
     message: string;
@@ -886,7 +886,7 @@ const TradeTab: React.FC = () => {
             isLoading={orderBookLoading}
             compact={false}
             onPairChange={setSelectedOrderBookPair}
-            availablePairs={["wPEPE-nUSD", "wCTRA-nUSD", "wPEPE-wCTRA"]}
+            availablePairs={["wCTRA-nUSD", "wPEPE-nUSD", "wPEPE-wCTRA"]}
           />
         </div>
 

@@ -246,6 +246,32 @@ export class CitreaService {
   }
 
   /**
+   * Get token ticker by address (reverse lookup)
+   */
+  getTokenTicker(address: Address): string {
+    // Handle undefined or null addresses
+    if (!address) {
+      console.warn(`Invalid token address: ${address}`);
+      return "UNKNOWN";
+    }
+
+    const addressMap: Record<string, string> = {
+      [this.contracts.tokens.wPEPE.toLowerCase()]: "wPEPE",
+      [this.contracts.tokens.wORDI.toLowerCase()]: "wORDI",
+      [this.contracts.tokens.wCTRA.toLowerCase()]: "wCTRA",
+      [this.contracts.nUSD.toLowerCase()]: "nUSD",
+    };
+
+    const ticker = addressMap[address.toLowerCase()];
+    if (!ticker) {
+      console.warn(`Unknown token address: ${address}`);
+      return address; // Return address as fallback
+    }
+
+    return ticker;
+  }
+
+  /**
    * Process dark pool batch
    */
   async processDarkPoolBatch(
@@ -519,28 +545,61 @@ export class CitreaService {
         address: this.contracts.orderBook,
         abi: ORDERBOOK_ABI,
         functionName: "revealedOrders",
-        args: [BigInt(orderId)],
+        args: [orderId],
       });
+      console.log(`🔍 [DEBUG] Raw order ${orderId}:`, order);
+      // Check if order exists (trader is not zero address)
+      if (!order || order[0] === "0x0000000000000000000000000000000000000000") {
+        return null;
+      }
 
-      if (order.trader === "0x0000000000000000000000000000000000000000") {
+      // Check if order has been revealed (amount > 0)
+      if (order[3] === 0n) {
         return null;
       }
 
       return {
-        trader: order.trader,
-        tokenA: order.tokenA,
-        tokenB: order.tokenB,
-        amount: order.amount,
-        price: order.price,
-        salt: order.salt,
-        orderType: Number(order.orderType),
-        orderId: Number(order.orderId),
-        batchId: Number(order.batchId),
-        executed: order.executed,
+        trader: order[0],
+        tokenA: order[1],
+        tokenB: order[2],
+        amount: order[3],
+        price: order[5],
+        salt: order[6],
+        orderType: Number(order[7]),
+        orderId: Number(order[8]),
+        batchId: Number(order[9]),
+        executed: order[10] === true,
       };
     } catch (error) {
+      // Handle ABI decoding errors more gracefully
+      if (error.message && error.message.includes("not a valid boolean")) {
+        console.warn(`⚠️ Order ${orderId} has invalid, ${error.message}`);
+        return null;
+      }
       console.error(`❌ Failed to get revealed order ${orderId}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Get order IDs for a specific batch
+   */
+  async getBatchOrderIds(batchId: number): Promise<string[]> {
+    try {
+      const orderIds = await this.publicClient.readContract({
+        address: this.contracts.orderBook,
+        abi: ORDERBOOK_ABI,
+        functionName: "getBatchOrderIds",
+        args: [BigInt(batchId)],
+      });
+
+      return (orderIds as bigint[]).map((id) => id.toString());
+    } catch (error) {
+      console.error(
+        `❌ Failed to get batch order IDs for batch ${batchId}:`,
+        error
+      );
+      return [];
     }
   }
 

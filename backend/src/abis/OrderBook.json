@@ -1,588 +1,1028 @@
 {
   "abi": [
-    { "type": "constructor", "inputs": [], "stateMutability": "nonpayable" },
     {
-      "type": "function",
-      "name": "COMMIT_PHASE_DURATION",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "stateMutability": "view"
+      "stateMutability": "nonpayable",
+      "type": "constructor"
     },
     {
-      "type": "function",
-      "name": "DEFAULT_ADMIN_ROLE",
       "inputs": [],
-      "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-      "stateMutability": "view"
+      "name": "AccessControlBadConfirmation",
+      "type": "error"
     },
     {
-      "type": "function",
-      "name": "MATCHER_ROLE",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "MIN_COMMIT_TIME",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "PAUSER_ROLE",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "REVEAL_PHASE_DURATION",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "batches",
-      "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "outputs": [
-        { "name": "batchId", "type": "uint256", "internalType": "uint256" },
-        { "name": "startTime", "type": "uint256", "internalType": "uint256" },
-        { "name": "endTime", "type": "uint256", "internalType": "uint256" },
-        { "name": "processed", "type": "bool", "internalType": "bool" },
-        { "name": "totalOrders", "type": "uint256", "internalType": "uint256" }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "cancelOrder",
-      "inputs": [
-        { "name": "orderId", "type": "uint256", "internalType": "uint256" }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "checkTokenApproval",
-      "inputs": [
-        { "name": "user", "type": "address", "internalType": "address" },
-        { "name": "token", "type": "address", "internalType": "address" },
-        { "name": "amount", "type": "uint256", "internalType": "uint256" }
-      ],
-      "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "commitOrder",
-      "inputs": [
-        { "name": "commitment", "type": "bytes32", "internalType": "bytes32" }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "committedOrders",
-      "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "outputs": [
-        { "name": "trader", "type": "address", "internalType": "address" },
-        { "name": "commitment", "type": "bytes32", "internalType": "bytes32" },
-        { "name": "commitTime", "type": "uint256", "internalType": "uint256" },
-        { "name": "batchId", "type": "uint256", "internalType": "uint256" },
-        {
-          "name": "status",
-          "type": "uint8",
-          "internalType": "enum OrderBook.OrderStatus"
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "createNewBatch",
-      "inputs": [],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "currentBatchId",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "getBatchOrderIds",
-      "inputs": [
-        { "name": "batchId", "type": "uint256", "internalType": "uint256" }
-      ],
-      "outputs": [
-        { "name": "", "type": "uint256[]", "internalType": "uint256[]" }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "getCurrentBatch",
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "",
-          "type": "tuple",
-          "internalType": "struct OrderBook.Batch",
-          "components": [
-            { "name": "batchId", "type": "uint256", "internalType": "uint256" },
-            {
-              "name": "startTime",
-              "type": "uint256",
-              "internalType": "uint256"
-            },
-            { "name": "endTime", "type": "uint256", "internalType": "uint256" },
-            {
-              "name": "orderIds",
-              "type": "uint256[]",
-              "internalType": "uint256[]"
-            },
-            { "name": "processed", "type": "bool", "internalType": "bool" },
-            {
-              "name": "totalOrders",
-              "type": "uint256",
-              "internalType": "uint256"
-            }
-          ]
-        }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "getRoleAdmin",
-      "inputs": [
-        { "name": "role", "type": "bytes32", "internalType": "bytes32" }
-      ],
-      "outputs": [{ "name": "", "type": "bytes32", "internalType": "bytes32" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "grantRole",
-      "inputs": [
-        { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-        { "name": "account", "type": "address", "internalType": "address" }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "hasRole",
-      "inputs": [
-        { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-        { "name": "account", "type": "address", "internalType": "address" }
-      ],
-      "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "nextBatchId",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "nextOrderId",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "pause",
-      "inputs": [],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "paused",
-      "inputs": [],
-      "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "processBatch",
-      "inputs": [
-        { "name": "batchId", "type": "uint256", "internalType": "uint256" },
-        {
-          "name": "buyOrderIds",
-          "type": "uint256[]",
-          "internalType": "uint256[]"
-        },
-        {
-          "name": "sellOrderIds",
-          "type": "uint256[]",
-          "internalType": "uint256[]"
-        },
-        {
-          "name": "matchedAmounts",
-          "type": "uint256[]",
-          "internalType": "uint256[]"
-        },
-        {
-          "name": "executionPrices",
-          "type": "uint256[]",
-          "internalType": "uint256[]"
-        }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "renounceRole",
-      "inputs": [
-        { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-        {
-          "name": "callerConfirmation",
-          "type": "address",
-          "internalType": "address"
-        }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "revealOrder",
-      "inputs": [
-        { "name": "orderId", "type": "uint256", "internalType": "uint256" },
-        { "name": "tokenA", "type": "address", "internalType": "address" },
-        { "name": "tokenB", "type": "address", "internalType": "address" },
-        { "name": "amount", "type": "uint256", "internalType": "uint256" },
-        { "name": "price", "type": "uint256", "internalType": "uint256" },
-        { "name": "salt", "type": "uint256", "internalType": "uint256" },
-        {
-          "name": "orderType",
-          "type": "uint8",
-          "internalType": "enum OrderBook.OrderType"
-        }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "revealedOrders",
-      "inputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
-      "outputs": [
-        { "name": "trader", "type": "address", "internalType": "address" },
-        { "name": "tokenA", "type": "address", "internalType": "address" },
-        { "name": "tokenB", "type": "address", "internalType": "address" },
-        { "name": "amount", "type": "uint256", "internalType": "uint256" },
-        { "name": "price", "type": "uint256", "internalType": "uint256" },
-        { "name": "salt", "type": "uint256", "internalType": "uint256" },
-        {
-          "name": "orderType",
-          "type": "uint8",
-          "internalType": "enum OrderBook.OrderType"
-        },
-        { "name": "orderId", "type": "uint256", "internalType": "uint256" },
-        { "name": "batchId", "type": "uint256", "internalType": "uint256" },
-        { "name": "executed", "type": "bool", "internalType": "bool" }
-      ],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "revokeRole",
-      "inputs": [
-        { "name": "role", "type": "bytes32", "internalType": "bytes32" },
-        { "name": "account", "type": "address", "internalType": "address" }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "function",
-      "name": "supportsInterface",
-      "inputs": [
-        { "name": "interfaceId", "type": "bytes4", "internalType": "bytes4" }
-      ],
-      "outputs": [{ "name": "", "type": "bool", "internalType": "bool" }],
-      "stateMutability": "view"
-    },
-    {
-      "type": "function",
-      "name": "unpause",
-      "inputs": [],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-    },
-    {
-      "type": "event",
-      "name": "BatchCreated",
       "inputs": [
         {
-          "name": "batchId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "startTime",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "endTime",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "BatchProcessed",
-      "inputs": [
-        {
-          "name": "batchId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "totalMatches",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "OrderCommitted",
-      "inputs": [
-        {
-          "name": "orderId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "trader",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "commitment",
-          "type": "bytes32",
-          "indexed": false,
-          "internalType": "bytes32"
-        },
-        {
-          "name": "batchId",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "OrderMatched",
-      "inputs": [
-        {
-          "name": "buyOrderId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "sellOrderId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "matchedAmount",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "executionPrice",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "OrderRevealed",
-      "inputs": [
-        {
-          "name": "orderId",
-          "type": "uint256",
-          "indexed": true,
-          "internalType": "uint256"
-        },
-        {
-          "name": "trader",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "price",
-          "type": "uint256",
-          "indexed": false,
-          "internalType": "uint256"
-        },
-        {
-          "name": "orderType",
-          "type": "uint8",
-          "indexed": false,
-          "internalType": "enum OrderBook.OrderType"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "Paused",
-      "inputs": [
-        {
+          "internalType": "address",
           "name": "account",
-          "type": "address",
-          "indexed": false,
-          "internalType": "address"
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "neededRole",
+          "type": "bytes32"
         }
       ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "RoleAdminChanged",
-      "inputs": [
-        {
-          "name": "role",
-          "type": "bytes32",
-          "indexed": true,
-          "internalType": "bytes32"
-        },
-        {
-          "name": "previousAdminRole",
-          "type": "bytes32",
-          "indexed": true,
-          "internalType": "bytes32"
-        },
-        {
-          "name": "newAdminRole",
-          "type": "bytes32",
-          "indexed": true,
-          "internalType": "bytes32"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "RoleGranted",
-      "inputs": [
-        {
-          "name": "role",
-          "type": "bytes32",
-          "indexed": true,
-          "internalType": "bytes32"
-        },
-        {
-          "name": "account",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "sender",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "RoleRevoked",
-      "inputs": [
-        {
-          "name": "role",
-          "type": "bytes32",
-          "indexed": true,
-          "internalType": "bytes32"
-        },
-        {
-          "name": "account",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        },
-        {
-          "name": "sender",
-          "type": "address",
-          "indexed": true,
-          "internalType": "address"
-        }
-      ],
-      "anonymous": false
-    },
-    {
-      "type": "event",
-      "name": "Unpaused",
-      "inputs": [
-        {
-          "name": "account",
-          "type": "address",
-          "indexed": false,
-          "internalType": "address"
-        }
-      ],
-      "anonymous": false
-    },
-    { "type": "error", "name": "AccessControlBadConfirmation", "inputs": [] },
-    {
-      "type": "error",
       "name": "AccessControlUnauthorizedAccount",
-      "inputs": [
-        { "name": "account", "type": "address", "internalType": "address" },
-        { "name": "neededRole", "type": "bytes32", "internalType": "bytes32" }
-      ]
+      "type": "error"
     },
-    { "type": "error", "name": "EnforcedPause", "inputs": [] },
-    { "type": "error", "name": "ExpectedPause", "inputs": [] },
-    { "type": "error", "name": "ReentrancyGuardReentrantCall", "inputs": [] }
+    {
+      "inputs": [],
+      "name": "EnforcedPause",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ExpectedPause",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ReentrancyGuardReentrantCall",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "startTime",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "endTime",
+          "type": "uint256"
+        }
+      ],
+      "name": "BatchCreated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "totalMatches",
+          "type": "uint256"
+        }
+      ],
+      "name": "BatchProcessed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "trader",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        }
+      ],
+      "name": "OrderCommitted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "buyOrderId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "sellOrderId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "matchedAmount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "executionPrice",
+          "type": "uint256"
+        }
+      ],
+      "name": "OrderMatched",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "trader",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "enum OrderBook.OrderType",
+          "name": "orderType",
+          "type": "uint8"
+        }
+      ],
+      "name": "OrderRevealed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "Paused",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "previousAdminRole",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "newAdminRole",
+          "type": "bytes32"
+        }
+      ],
+      "name": "RoleAdminChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "RoleGranted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        }
+      ],
+      "name": "RoleRevoked",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "Unpaused",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "COMMIT_PHASE_DURATION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "DEFAULT_ADMIN_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MATCHER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MIN_COMMIT_TIME",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "PAUSER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REVEAL_PHASE_DURATION",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "batches",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "startTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "endTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "processed",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "totalOrders",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        }
+      ],
+      "name": "cancelOrder",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "checkTokenApproval",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        }
+      ],
+      "name": "commitOrder",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "committedOrders",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "trader",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "commitTime",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "enum OrderBook.OrderStatus",
+          "name": "status",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "createNewBatch",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "currentBatchId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getBatchOrderIds",
+      "outputs": [
+        {
+          "internalType": "uint256[]",
+          "name": "",
+          "type": "uint256[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getCurrentBatch",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "batchId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "startTime",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "endTime",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256[]",
+              "name": "orderIds",
+              "type": "uint256[]"
+            },
+            {
+              "internalType": "bool",
+              "name": "processed",
+              "type": "bool"
+            },
+            {
+              "internalType": "uint256",
+              "name": "totalOrders",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct OrderBook.Batch",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getFillPercentage",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getFilledAmount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getOrderFillInfo",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "originalAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "filledAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "remainingAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "executed",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        }
+      ],
+      "name": "getRemainingAmount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getRoleAdmin",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "grantRole",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "hasRole",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        }
+      ],
+      "name": "isFullyExecuted",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        }
+      ],
+      "name": "isPartiallyFilled",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nextBatchId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "nextOrderId",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pause",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "paused",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "buyOrderIds",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "sellOrderIds",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "matchedAmounts",
+          "type": "uint256[]"
+        },
+        {
+          "internalType": "uint256[]",
+          "name": "executionPrices",
+          "type": "uint256[]"
+        }
+      ],
+      "name": "processBatch",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "callerConfirmation",
+          "type": "address"
+        }
+      ],
+      "name": "renounceRole",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenA",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenB",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "salt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "enum OrderBook.OrderType",
+          "name": "orderType",
+          "type": "uint8"
+        }
+      ],
+      "name": "revealOrder",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "revealedOrders",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "trader",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenA",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenB",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "filledAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "salt",
+          "type": "uint256"
+        },
+        {
+          "internalType": "enum OrderBook.OrderType",
+          "name": "orderType",
+          "type": "uint8"
+        },
+        {
+          "internalType": "uint256",
+          "name": "orderId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "executed",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "role",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "revokeRole",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "interfaceId",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "unpause",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
   ],
   "bytecode": {
     "object": "0x6040608081523462000245576001806002556200001c336200024a565b506200002833620002ca565b5062000034336200036c565b50600854806200022d575b506007546000198114620002175760018101600755600881905582516020916001600160401b0391838101838111828210176200020157865260009485825286519360c0850185811082821117620001ed5788528385528585019242845288860188815260608701918252608087019489865260a08801968a88528a52600589528a8a20975188555160018801555160028701556003860190518051928311620001d957680100000000000000008311620001d95787908254848455808510620001ac575b5001908852868820885b8381106200019a57505050505090600591600484019051151560ff80198354169116179055519101556008549161012c4201908142116200018657507f07978a2d36cf05f633498b1178e77417882ed002fa4dae7c3d9e4dc989fe2c84918491825191428352820152a251611c2990816200040a8239f35b634e487b7160e01b81526011600452602490fd5b8251828201559188019184016200010e565b838b528585848d2092830192015b828110620001ca57505062000104565b8c81558b9450879101620001ba565b634e487b7160e01b89526041600452602489fd5b634e487b7160e01b88526041600452602488fd5b634e487b7160e01b600052604160045260246000fd5b634e487b7160e01b600052601160045260246000fd5b6000526005602052426002836000200155386200003f565b600080fd5b6001600160a01b031660008181527fad3228b676f7d3cd4284a5443f17f1962b36e491b30a40b2405849e597ba5fb5602052604081205490919060ff16620002c657818052816020526040822081835260205260408220600160ff198254161790553391600080516020620020338339815191528180a4600190565b5090565b6001600160a01b031660008181527fa364f696a6c045481f027229b52d5f6627323c1ae901ff9bb8a960d331d4b3f660205260408120549091907fdf91394c13c48ebd5370100f1eb84afe3c6c47a78f9f9f874d5a9ec6afe0ae6b9060ff166200036757808352826020526040832082845260205260408320600160ff1982541617905560008051602062002033833981519152339380a4600190565b505090565b6001600160a01b031660008181527ff7c9542c591017a21c74b6f3fab6263c7952fc0aaf9db4c22a2a04ddc7f8674f60205260408120549091907f65d7a28e3265b37a6474929f336521b332c1681b933f6cb9f3376673440d862a9060ff166200036757808352826020526040832082845260205260408320600160ff1982541617905560008051602062002033833981519152339380a460019056fe608080604052600436101561001357600080fd5b60003560e01c90816301ffc9a714611832575080630a763da1146118145780630caa9a46146117685780630d3c15cc1461174b5780631875e8f514611555578063199dea77146114e9578063248a9ca3146114ba5780632a58b3301461149c5780632d4d6cd91461142d5780632f2ff15d146113ee57806336568abe146113a75780633f4ba83a1461133d57806347f89b411461113d578063514fcac7146110495780635c975abb146110265780638456cb5914610fcd5780638462a7f814610faf57806391d1485414610f62578063a217fddf14610f46578063a60a9e2b14610e2b578063ac3851cd14610d17578063b2194ff514610cdc578063b32c4d8d14610c7f578063c988fb2614610c63578063d547741f14610c22578063dab3a37a14610846578063e63ab1e91461080b578063e8fee2f91461017f5763f18cd0551461015e57600080fd5b3461017a57600036600319011261017a57602060405160028152f35b600080fd5b3461017a5760a036600319011261017a5767ffffffffffffffff60243581811161017a576101b19036906004016118e6565b60443582811161017a576101c99036906004016118e6565b9160643581811161017a576101e29036906004016118e6565b9060843590811161017a576101fb9036906004016118e6565b3360009081527fa364f696a6c045481f027229b52d5f6627323c1ae901ff9bb8a960d331d4b3f660205260409020549093907fdf91394c13c48ebd5370100f1eb84afe3c6c47a78f9f9f874d5a9ec6afe0ae6b9060ff16156107ed5750610260611b9c565b60085460043510156107a857600435600052600560205260ff6004604060002001541661076357600435600052600560205260016040600020015461012c810190818111610534576101e0018091116105345742111561071e57825181518091149081610713575b5080610708575b156106cb5760005b835181101561067b576102ea81856119ed565b51906102f681846119ed565b5161030182866119ed565b519261030d83896119ed565b519381600052600460205260406000209483600052604060002091600660ff8189015416600281101561062c576106425783015460ff16600281101561062c576001036105f25760ff60098801541615806105e3575b1561059e57600187015460028401546001600160a01b0390811691161480610580575b1561054a578082810204821481151715610534576001830154835488546040516323b872dd60e01b81526001600160a01b039283166004820152908216602482015260448101849052939160209185916064918391600091165af19283156105095761044893610515575b506001880154885485546040516323b872dd60e01b81526001600160a01b0392831660048201529082166024820152670de0b6b3a76400008585020460448201529460209286921690829060009082906064820190565b03925af19788156105095760097f82877c5945532f956e6718f78f5606b7b5d8efef5e22121a3d9bf4e708873edd9560409560019b6104da575b5060ff1992828c8582840154161791015501898282541617905585600052600360205260048460002001600282825416179055866000526002600485600020019182541617905582519182526020820152a3016102d7565b6104fb9060203d602011610502575b6104f381836118c4565b810190611bdb565b508f610482565b503d6104e9565b6040513d6000823e3d90fd5b61052d9060203d602011610502576104f381836118c4565b508c6103f1565b634e487b7160e01b600052601160045260246000fd5b60405162461bcd60e51b815260206004820152600e60248201526d0a8ded6cadc40dad2e6dac2e8c6d60931b6044820152606490fd5b50600287015460018401546001600160a01b03908116911614610386565b60405162461bcd60e51b815260206004820152601760248201527f4f726465727320616c72656164792065786563757465640000000000000000006044820152606490fd5b5060ff60098401541615610363565b60405162461bcd60e51b815260206004820152601260248201527124b73b30b634b21039b2b6361037b93232b960711b6044820152606490fd5b634e487b7160e01b600052602160045260246000fd5b60405162461bcd60e51b815260206004820152601160248201527024b73b30b634b210313abc9037b93232b960791b6044820152606490fd5b8360043560005260056020526004604060002001600160ff19825416179055516040519081527f3838459cd794256a3c29bb3186da72029a8036c0f596fee1bd526f8eb9493d41602060043592a2005b60405162461bcd60e51b8152602060048201526015602482015274082e4e4c2f240d8cadccee8d040dad2e6dac2e8c6d605b1b6044820152606490fd5b5081518451146102cf565b9050825114856102c8565b60405162461bcd60e51b815260206004820152601760248201527f4e6f7420696e2070726f63657373696e672070686173650000000000000000006044820152606490fd5b60405162461bcd60e51b815260206004820152601760248201527f426174636820616c72656164792070726f6365737365640000000000000000006044820152606490fd5b60405162461bcd60e51b815260206004820152601e60248201527f4261746368206e6f7420726561647920666f722070726f63657373696e6700006044820152606490fd5b6044906040519063e2517d3f60e01b82523360048301526024820152fd5b3461017a57600036600319011261017a5760206040517f65d7a28e3265b37a6474929f336521b332c1681b933f6cb9f3376673440d862a8152f35b3461017a5760e036600319011261017a5761085f611892565b604435906001600160a01b038216820361017a57600260c435101561017a57610886611b9c565b61088e611bba565b60043560005260036020526040600020916108b360018060a01b0384541633146119af565b600483019182549260ff8416600481101561062c57610be75760038501549384600052600560205260016040600020015461012c8101808211610534578042119182610bd1575b505015610b9657600286015460028101809111610534574210610b5b576040519560208701966064358852608435604082015260a435606082015260c43560f81b60808201526061815260a081019167ffffffffffffffff988284108a851117610b1157600190846040528351902091015403610b2757505060ff1916600117905560405193610140850190811190851117610b1157610140840160405233845260018060a01b0316602084015260018060a01b031660408301526064356060830152608435608083015260a43560a083015260c43560c083015260043560e083015261010082015260006101208201526004356000526004602052604060002060018060a01b038251166bffffffffffffffffffffffff60a01b90818354161782556001820160018060a01b0360208501511682825416179055600282019060018060a01b0360408501511690825416179055606082015160038201556080820151600482015560a082015160058201556006810160c0830151600281101561062c57610ac1936009926101209260ff8019835416911617905560e0810151600785015561010081015160088501550151151591019060ff801983541691151516179055565b60405160643581526084356020820152610ae06040820160c435611885565b33907f7bff35171bad917d46b272fa2f78fd42257c1a44eaf649394808604d56dc7be7606060043592a36001600255005b634e487b7160e01b600052604160045260246000fd5b62461bcd60e51b8252602060a4820152600e60c48201526d125b9d985b1a59081c995d99585b60921b60e490910152606490fd5b60405162461bcd60e51b8152602060048201526013602482015272151bdbc819585c9b1e481d1bc81c995d99585b606a1b6044820152606490fd5b60405162461bcd60e51b81526020600482015260136024820152724e6f7420696e2072657665616c20706861736560681b6044820152606490fd5b6101e001915081106105345742111587806108fa565b60405162461bcd60e51b815260206004820152601360248201527213dc99195c881b9bdd0818dbdb5b5a5d1d1959606a1b6044820152606490fd5b3461017a57604036600319011261017a57610c61600435610c41611892565b90806000526000602052610c5c600160406000200154611a83565b611b27565b005b3461017a57600036600319011261017a57602060405160b48152f35b3461017a57602036600319011261017a57600435600052600560205260a060406000208054906001810154906002810154600560ff6004840154169201549260405194855260208501526040840152151560608301526080820152f35b3461017a57600036600319011261017a5760206040517fdf91394c13c48ebd5370100f1eb84afe3c6c47a78f9f9f874d5a9ec6afe0ae6b8152f35b3461017a57600036600319011261017a57604051610d34816118a8565b60008152600060a060209282848201528260408201526060808201528260808201520152600854600052600581526040600020604051610d73816118a8565b8154815260019260018301549281830193845260028101549160408401928352610d9f6003830161194d565b60608501908152600560ff6004850154169360808701941515855201549360a086019485526040519683885260e08801965184890152516040880152516060870152519360c06080870152845180915281610100870195019160005b828110610e18578451151560a0890152855160c089015287870388f35b8351875295810195928101928801610dfb565b3461017a57606036600319011261017a576001600160a01b036004358181169081900361017a57610e5a611892565b6040516370a0823160e01b8152600481018390526020936044359216908481602481855afa9081156105095785918491600091610f14575b5010159384610ea7575b506040518415158152f35b9091929350604460405180948193636eb1769f60e11b835260048301523060248301525afa90811561050957600091610ee7575b50101582808381610e9c565b90508281813d8311610f0d575b610efe81836118c4565b8101031261017a575183610edb565b503d610ef4565b928092508391503d8311610f3f575b610f2d81836118c4565b8101031261017a578285915187610e92565b503d610f23565b3461017a57600036600319011261017a57602060405160008152f35b3461017a57604036600319011261017a57610f7b611892565b600435600052600060205260406000209060018060a01b0316600052602052602060ff604060002054166040519015158152f35b3461017a57600036600319011261017a576020600754604051908152f35b3461017a57600036600319011261017a57610fe6611a27565b610fee611b9c565b600160ff19815416176001557f62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a2586020604051338152a1005b3461017a57600036600319011261017a57602060ff600154166040519015158152f35b3461017a57602036600319011261017a576004356000526003602052604060002061107e60018060a01b0382541633146119af565b600481019081549060ff8216600481101561062c576111005761109f611a01565b90816110f0575b50156110b75760ff19166003179055005b60405162461bcd60e51b815260206004820152601160248201527043616e6e6f742063616e63656c206e6f7760781b6044820152606490fd5b60039150015460085414836110a6565b60405162461bcd60e51b81526020600482015260156024820152744f72646572206e6f742063616e63656c6c61626c6560581b6044820152606490fd5b3461017a5760208060031936011261017a576004359061115b611b9c565b611163611bba565b811561130457611171611a01565b156112ca5760065490611183826119a0565b60065560085460405160a081019080821067ffffffffffffffff831117610b1157600491604052338152838101928684526040820142815260608301918252608083019460008652876000526003875260406000209360018060a01b039051166bffffffffffffffffffffffff60a01b855416178455516001840155516002830155516003820155019051600481101561062c5760ff801983541691161790556008546000526005815260036040600020018054600160401b811015610b1157600181018083558110156112b457839160005282600020015560085460005260058152600560406000200161127881546119a0565b9055600854906040519384528301527fd015a28dbee7bb4df295fb265bbc2b41a442b7a267e88753021ed3546b67f58a60403393a36001600255005b634e487b7160e01b600052603260045260246000fd5b6064906040519062461bcd60e51b8252600482015260136024820152724e6f7420696e20636f6d6d697420706861736560681b6044820152fd5b6064906040519062461bcd60e51b825260048201526012602482015271125b9d985b1a590818dbdb5b5a5d1b595b9d60721b6044820152fd5b3461017a57600036600319011261017a57611356611a27565b60015460ff8116156113955760ff19166001557f5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa6020604051338152a1005b604051638dfc202b60e01b8152600490fd5b3461017a57604036600319011261017a576113c0611892565b336001600160a01b038216036113dc57610c6190600435611b27565b60405163334bd91960e11b8152600490fd5b3461017a57604036600319011261017a57610c6160043561140d611892565b90806000526000602052611428600160406000200154611a83565b611aa9565b3461017a5760208060031936011261017a5760043560005260058152611459600360406000200161194d565b906040519181839283018184528251809152816040850193019160005b82811061148557505050500390f35b835185528695509381019392810192600101611476565b3461017a57600036600319011261017a576020600654604051908152f35b3461017a57602036600319011261017a5760043560005260006020526020600160406000200154604051908152f35b3461017a57602036600319011261017a576004356000526003602052604060002060018060a01b03815416600182015491600281015460ff600460038401549301541693604051938452602084015260408301526060820152600482101561062c5760a0916080820152f35b3461017a57600036600319011261017a5761156e611a01565b61170657600854806116ee575b50600754611588816119a0565b600755806008556040516020918282019167ffffffffffffffff9281811084821117610b115760405260008152604051926115c2846118a8565b828452848401904282526040850192600084526060860190815260808601936000855260a087019560008752600052600588526040600020965187556001935160018801555160028701556003860190518051928311610b1157600160401b8311610b1157879082548484558085106116c1575b5001906000528660002060005b8381106116b057888860058961166b8a511515600485019060ff801983541691151516179055565b519101556008549061012c4201804211610534577f07978a2d36cf05f633498b1178e77417882ed002fa4dae7c3d9e4dc989fe2c8491604091825191428352820152a2005b825182820155918801918401611643565b8360005285858460002092830192015b8281106116df575050611636565b600081558b94508791016116d1565b6000526005602052426002604060002001558061157b565b60405162461bcd60e51b815260206004820152601a60248201527f43757272656e74206261746368207374696c6c206163746976650000000000006044820152606490fd5b3461017a57600036600319011261017a57602060405161012c8152f35b3461017a57602036600319011261017a576004356000526004602052610140604060002060018060a01b03808254169181600182015416916002820154166117ff6003830154600484015460058501549060ff6006870154169260078701549560ff600960088a015499015416986040519a8b5260208b015260408a01526060890152608088015260a087015260c0860190611885565b60e08401526101008301521515610120820152f35b3461017a57600036600319011261017a576020600854604051908152f35b3461017a57602036600319011261017a576004359063ffffffff60e01b821680920361017a57602091637965db0b60e01b8114908115611874575b5015158152f35b6301ffc9a760e01b1490508361186d565b90600282101561062c5752565b602435906001600160a01b038216820361017a57565b60c0810190811067ffffffffffffffff821117610b1157604052565b90601f8019910116810190811067ffffffffffffffff821117610b1157604052565b81601f8201121561017a5780359160209167ffffffffffffffff8411610b11578360051b906040519461191b858401876118c4565b8552838086019282010192831161017a578301905b82821061193e575050505090565b81358152908301908301611930565b90604051918281549182825260209260208301916000526020600020936000905b82821061198657505050611984925003836118c4565b565b85548452600195860195889550938101939091019061196e565b60001981146105345760010190565b156119b657565b60405162461bcd60e51b815260206004820152600f60248201526e2737ba1037b93232b91037bbb732b960891b6044820152606490fd5b80518210156112b45760209160051b010190565b600854600052600560205260016040600020015461012c81018091116105345742111590565b3360009081527ff7c9542c591017a21c74b6f3fab6263c7952fc0aaf9db4c22a2a04ddc7f8674f60205260409020547f65d7a28e3265b37a6474929f336521b332c1681b933f6cb9f3376673440d862a9060ff16156107ed5750565b80600052600060205260406000203360005260205260ff60406000205416156107ed5750565b9060009180835282602052604083209160018060a01b03169182845260205260ff60408420541615600014611b2257808352826020526040832082845260205260408320600160ff198254161790557f2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d339380a4600190565b505090565b9060009180835282602052604083209160018060a01b03169182845260205260ff604084205416600014611b225780835282602052604083208284526020526040832060ff1981541690557ff6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b339380a4600190565b60ff60015416611ba857565b60405163d93c066560e01b8152600490fd5b6002805414611bc95760028055565b604051633ee5aeb560e01b8152600490fd5b9081602091031261017a5751801515810361017a579056fea2646970667358221220992d87e83d288289eb88074c4d3427cdf3f1fbb20e542c6ee6c1af4d9a2e3a4264736f6c634300081800332f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d",

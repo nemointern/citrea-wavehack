@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { API_BASE_URL } from "../../config/api";
@@ -38,6 +38,11 @@ const BridgeTab: React.FC = () => {
     instructions: string;
   } | null>(null);
   const [step, setStep] = useState<"select" | "deposit" | "monitor">("select");
+  const [notification, setNotification] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+    txHash?: string;
+  } | null>(null);
   const queryClient = useQueryClient();
 
   // Real wallet connection
@@ -111,12 +116,67 @@ const BridgeTab: React.FC = () => {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Refresh user requests to show updated status
       refetchRequests();
       queryClient.invalidateQueries({ queryKey: ["bridge-stats"] });
+
+      // Auto-switch to monitor step to watch progress
+      setTimeout(() => {
+        setStep("monitor");
+      }, 2000);
+
+      // Poll for completion and show transaction hash
+      const pollForCompletion = async () => {
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/bridge/request/${data.bridgeRequestId}`
+          );
+          if (response.ok) {
+            const request = await response.json();
+            if (request.status === "completed" && request.citreaTxHash) {
+              setNotification({
+                type: "success",
+                message: `✅ Bridge completed! ${request.amount} w${request.ticker} minted successfully.`,
+                txHash: request.citreaTxHash,
+              });
+            } else if (request.status === "failed") {
+              setNotification({
+                type: "error",
+                message: `❌ Bridge failed: ${
+                  request.error || "Unknown error"
+                }`,
+              });
+            } else {
+              // Still processing, poll again
+              setTimeout(pollForCompletion, 3000);
+            }
+          }
+        } catch (error) {
+          console.error("Error polling bridge status:", error);
+        }
+      };
+
+      // Start polling after a short delay
+      setTimeout(pollForCompletion, 5000);
+    },
+    onError: (error) => {
+      setNotification({
+        type: "error",
+        message: `❌ Failed to trigger mock deposit: ${error.message}`,
+      });
     },
   });
+
+  // Auto-hide notifications
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000); // Hide after 5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const handleCreateBridge = () => {
     if (!walletAddress) return;
@@ -164,6 +224,63 @@ const BridgeTab: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      {/* Notification */}
+      {notification && (
+        <div
+          className={`fixed top-4 right-4 z-50 max-w-md p-4 rounded-xl border backdrop-blur-sm transition-all duration-300 ${
+            notification.type === "success"
+              ? "bg-green-500/10 border-green-500/20 text-green-400"
+              : notification.type === "error"
+              ? "bg-red-500/10 border-red-500/20 text-red-400"
+              : "bg-blue-500/10 border-blue-500/20 text-blue-400"
+          }`}
+        >
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              {notification.type === "success" ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : notification.type === "error" ? (
+                <AlertCircle className="w-5 h-5" />
+              ) : (
+                <Clock className="w-5 h-5" />
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium">{notification.message}</p>
+              {notification.txHash && (
+                <a
+                  href={`https://explorer.citrea.xyz/tx/${notification.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 text-xs text-citrea-400 hover:text-citrea-300 mt-1"
+                >
+                  <span>View Transaction</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+            <button
+              onClick={() => setNotification(null)}
+              className="flex-shrink-0 text-current opacity-70 hover:opacity-100"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center">
         {/* Wallet Status */}
@@ -184,12 +301,7 @@ const BridgeTab: React.FC = () => {
           </div>
         )}
 
-        {/* Demo Mode Banner */}
-        <div className="mt-4 inline-flex items-center space-x-2 px-6 py-3 bg-blue-400/10 border border-blue-400/20 rounded-xl">
-          <span className="text-blue-400 font-medium">
-            Demo Mode: Mock deposits are automatically triggered for testing
-          </span>
-        </div>
+        <div className="mt-4 inline-flex items-center space-x-2 px-6 py-3 bg-blue-400/10 border border-blue-400/20 rounded-xl"></div>
       </div>
 
       {/* Main Bridge Interface */}
@@ -205,13 +317,11 @@ const BridgeTab: React.FC = () => {
               <label className="block text-sm font-medium text-pool-text mb-3">
                 Select BRC20 Token
               </label>
-              <div className="grid grid-cols-3 gap-4">
-                {["CTRA", "PEPE", "ORDI"].map((token) => (
+              <div className="grid grid-cols-2 gap-4">
+                {["CTRA", "PEPE"].map((token) => (
                   <button
                     key={token}
-                    onClick={() =>
-                      setSelectedToken(token as "CTRA" | "PEPE" | "ORDI")
-                    }
+                    onClick={() => setSelectedToken(token as "CTRA" | "PEPE")}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       selectedToken === token
                         ? "border-citrea-500 bg-citrea-500/10 text-citrea-300"
@@ -354,15 +464,19 @@ const BridgeTab: React.FC = () => {
                   });
                 }}
                 disabled={triggerMockDepositMutation.isPending}
-                className="btn-secondary px-4 py-2 text-sm disabled:opacity-50"
+                className={`px-4 py-2 text-sm rounded-lg border transition-all duration-200 disabled:opacity-50 ${
+                  triggerMockDepositMutation.isPending
+                    ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-400"
+                    : "bg-orange-500/10 border-orange-500/20 text-orange-400 hover:bg-orange-500/20"
+                }`}
               >
                 {triggerMockDepositMutation.isPending ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                    Triggering...
+                    Triggering Deposit...
                   </>
                 ) : (
-                  "🚀 Trigger Mock Deposit Now"
+                  <>Trigger Mock Deposit Now</>
                 )}
               </button>
             </div>

@@ -233,6 +233,32 @@ app.get("/api/health", async (req: any, res: any) => {
   }
 });
 
+// Debug endpoint to check raw order data
+app.get("/api/darkpool/debug/order/:orderId", async (req: any, res: any) => {
+  try {
+    const orderId = parseInt(req.params.orderId);
+    console.log(`🔍 [DEBUG] Checking raw order data for order ${orderId}`);
+
+    const rawOrder = await citreaService.getRevealedOrder(orderId);
+    console.log(`🔍 [DEBUG] Raw order ${orderId}:`, rawOrder);
+
+    res.json({
+      orderId,
+      rawOrder,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error(
+      `❌ [DEBUG] Error getting order ${req.params.orderId}:`,
+      error
+    );
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Unknown error",
+      orderId: req.params.orderId,
+    });
+  }
+});
+
 // BTC Monitor routes
 app.post("/api/btc/monitor/address", (req: any, res: any) => {
   try {
@@ -1180,6 +1206,50 @@ interface UserOrder {
 const userOrders: Map<string, UserOrder[]> = new Map();
 let nextOrderId = 1;
 
+// Simple file-based persistence for orders
+const ORDERS_FILE = "./user_orders.json";
+
+// Load orders from file on startup
+const loadOrdersFromFile = () => {
+  try {
+    const fs = require("fs");
+    if (fs.existsSync(ORDERS_FILE)) {
+      const data = fs.readFileSync(ORDERS_FILE, "utf8");
+      const ordersData = JSON.parse(data);
+      Object.entries(ordersData.orders || {}).forEach(
+        ([user, orders]: [string, any]) => {
+          userOrders.set(user, orders);
+        }
+      );
+      nextOrderId = ordersData.nextOrderId || 1;
+      console.log(
+        `📁 Loaded ${userOrders.size} users' orders from file, nextOrderId: ${nextOrderId}`
+      );
+    }
+  } catch (error) {
+    console.error("❌ Failed to load orders from file:", error);
+  }
+};
+
+// Save orders to file
+const saveOrdersToFile = () => {
+  try {
+    const fs = require("fs");
+    const ordersData: any = { orders: {}, nextOrderId };
+    userOrders.forEach((orders, user) => {
+      ordersData.orders[user] = orders;
+    });
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(ordersData, null, 2));
+  } catch (error) {
+    console.error("❌ Failed to save orders to file:", error);
+  }
+};
+
+// Load orders on startup
+loadOrdersFromFile();
+
+// Mock orders removed for debugging real orders - no mock orders added
+
 function generateSalt(): string {
   return (
     Math.random().toString(36).substring(2, 15) +
@@ -1393,6 +1463,9 @@ app.post("/api/darkpool/order/submit", async (req: any, res: any) => {
       }
       userOrders.get(trader)!.push(newOrder);
 
+      // Save orders to file
+      saveOrdersToFile();
+
       res.json({
         orderId: newOrder.orderId,
         batchId: newOrder.batchId,
@@ -1547,7 +1620,7 @@ app.get("/api/darkpool/orders/user/:userAddress", (req: any, res: any) => {
  *                   type: string
  *                   example: "Invalid pair format. Use 'TOKEN1-TOKEN2'"
  */
-app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
+app.get("/api/darkpool/orderbook/:pair", async (req: any, res: any) => {
   try {
     const { pair } = req.params;
     const depth = parseInt(req.query.depth as string) || 10;
@@ -1560,18 +1633,224 @@ app.get("/api/darkpool/orderbook/:pair", (req: any, res: any) => {
 
     const [tokenA, tokenB] = pair.split("-");
 
-    // Get all revealed orders for this pair from all users
+    console.log(
+      `📖 [ORDER BOOK] Getting order book for pair: ${pair} (${tokenA}-${tokenB})`
+    );
+
+    // Get all revealed orders for this pair from ON-CHAIN + local storage
     const revealedOrders: UserOrder[] = [];
+
+    // 1. First, get local orders from userOrders map
+    console.log(
+      `📖 [ORDER BOOK] Checking local orders (${userOrders.size} users)`
+    );
     for (const [user, orders] of userOrders.entries()) {
       orders.forEach((order) => {
-        if (
-          order.status === "REVEALED" &&
-          ((order.tokenA === tokenA && order.tokenB === tokenB) ||
-            (order.tokenA === tokenB && order.tokenB === tokenA))
-        ) {
-          revealedOrders.push(order);
+        if (order.status === "REVEALED") {
+          if (
+            (order.tokenA === tokenA && order.tokenB === tokenB) ||
+            (order.tokenA === tokenB && order.tokenB === tokenA)
+          ) {
+            console.log(
+              `📖 [ORDER BOOK] ✅ Adding local revealed order ${order.orderId}`
+            );
+            revealedOrders.push(order);
+          }
         }
       });
+    }
+
+    // 2. Get ON-CHAIN revealed orders from smart contract
+    if (citreaService) {
+      try {
+        console.log(`📖 [ORDER BOOK] Checking ON-CHAIN revealed orders...`);
+        const currentBatch = await citreaService.getCurrentBatch();
+
+        // Check recent batches for revealed orders (current + previous few batches)
+        const batchesToCheck = [currentBatch.batchId];
+        for (let i = 1; i <= 3; i++) {
+          const prevBatchId = Number(currentBatch.batchId) - i;
+          if (prevBatchId > 0) {
+            batchesToCheck.push(prevBatchId);
+          }
+        }
+
+        console.log(
+          `📖 [ORDER BOOK] Checking batches: ${batchesToCheck.join(", ")}`
+        );
+
+        for (const batchId of batchesToCheck) {
+          console.log(
+            `📖 [ORDER BOOK] Checking batch ${batchId} for revealed orders...`
+          );
+
+          // Try to get batch order IDs (this might fail for older batches)
+          try {
+            const batchOrderIds = await citreaService.getBatchOrderIds(
+              Number(batchId)
+            );
+            console.log(
+              `📖 [ORDER BOOK] Batch ${batchId} has order IDs: ${batchOrderIds.join(
+                ", "
+              )}`
+            );
+
+            for (const orderIdStr of batchOrderIds) {
+              const orderId = Number(orderIdStr);
+              try {
+                const onChainOrder = await citreaService.getRevealedOrder(
+                  orderId
+                );
+                if (onChainOrder) {
+                  console.log(
+                    `📖 [ORDER BOOK] ✅ Found ON-CHAIN revealed order ${orderId} in batch ${batchId}`
+                  );
+
+                  try {
+                    // Convert on-chain order to UserOrder format
+                    const orderData: UserOrder = {
+                      orderId: onChainOrder.orderId,
+                      batchId: onChainOrder.batchId,
+                      tokenA: citreaService.getTokenTicker(onChainOrder.tokenA),
+                      tokenB: citreaService.getTokenTicker(onChainOrder.tokenB),
+                      amount: (Number(onChainOrder.amount) / 1e18).toString(),
+                      price: (Number(onChainOrder.price) / 1e18).toString(),
+                      orderType: onChainOrder.orderType === 0 ? "BUY" : "SELL",
+                      status: "REVEALED",
+                      timestamp: Date.now(),
+                      trader: onChainOrder.trader,
+                    };
+
+                    console.log(
+                      `📖 [ORDER BOOK] Order ${orderId} details: ${orderData.orderType} ${orderData.amount} ${orderData.tokenA}/${orderData.tokenB} @ ${orderData.price} by ${orderData.trader}`
+                    );
+
+                    // Check if this order matches our trading pair
+                    if (
+                      (orderData.tokenA === tokenA &&
+                        orderData.tokenB === tokenB) ||
+                      (orderData.tokenA === tokenB &&
+                        orderData.tokenB === tokenA)
+                    ) {
+                      // Check if we already have this order locally to avoid duplicates
+                      const alreadyExists = revealedOrders.some(
+                        (o) => o.orderId === orderId
+                      );
+                      if (!alreadyExists) {
+                        console.log(
+                          `📖 [ORDER BOOK] ✅ Adding ON-CHAIN revealed order ${orderId} to order book`
+                        );
+                        revealedOrders.push(orderData);
+                      } else {
+                        console.log(
+                          `📖 [ORDER BOOK] ℹ️ Order ${orderId} already exists locally, skipping`
+                        );
+                      }
+                    } else {
+                      console.log(
+                        `📖 [ORDER BOOK] ❌ ON-CHAIN order ${orderId} doesn't match pair ${pair} (order: ${orderData.tokenA}/${orderData.tokenB})`
+                      );
+                    }
+                  } catch (conversionError) {
+                    console.log(
+                      `📖 [ORDER BOOK] ❌ Error converting order ${orderId}:`,
+                      conversionError.message
+                    );
+                  }
+                }
+              } catch (orderError) {
+                console.log(
+                  `📖 [ORDER BOOK] Order ${orderId} not revealed yet or error:`,
+                  orderError.message
+                );
+              }
+            }
+          } catch (batchError) {
+            console.log(
+              `📖 [ORDER BOOK] Could not get order IDs for batch ${batchId}:`,
+              batchError.message
+            );
+
+            // Fallback: try to scan for revealed orders by checking order IDs directly
+            // This is less efficient but works if we can't get batch order IDs
+            console.log(
+              `📖 [ORDER BOOK] Fallback: scanning for revealed orders in recent range...`
+            );
+
+            // Check last 50 order IDs for revealed orders (adjust range as needed)
+            for (
+              let orderId = Math.max(1, Number(batchId) * 10 - 50);
+              orderId <= Number(batchId) * 10 + 50;
+              orderId++
+            ) {
+              try {
+                const onChainOrder = await citreaService.getRevealedOrder(
+                  orderId
+                );
+                if (onChainOrder && onChainOrder.batchId === Number(batchId)) {
+                  console.log(
+                    `📖 [ORDER BOOK] ✅ Found revealed order ${orderId} via fallback scan`
+                  );
+
+                  const orderData: UserOrder = {
+                    orderId: onChainOrder.orderId,
+                    batchId: onChainOrder.batchId,
+                    tokenA: citreaService.getTokenTicker(onChainOrder.tokenA),
+                    tokenB: citreaService.getTokenTicker(onChainOrder.tokenB),
+                    amount: (Number(onChainOrder.amount) / 1e18).toString(),
+                    price: (Number(onChainOrder.price) / 1e18).toString(),
+                    orderType: onChainOrder.orderType === 0 ? "BUY" : "SELL",
+                    status: "REVEALED",
+                    timestamp: Date.now(),
+                    trader: onChainOrder.trader,
+                  };
+
+                  if (
+                    (orderData.tokenA === tokenA &&
+                      orderData.tokenB === tokenB) ||
+                    (orderData.tokenA === tokenB && orderData.tokenB === tokenA)
+                  ) {
+                    const alreadyExists = revealedOrders.some(
+                      (o) => o.orderId === orderId
+                    );
+                    if (!alreadyExists) {
+                      revealedOrders.push(orderData);
+                    }
+                  }
+                }
+              } catch {
+                // Ignore errors when scanning for orders
+              }
+            }
+
+            break; // Only do fallback scan for one batch to avoid too many calls
+          }
+        }
+      } catch (error) {
+        console.log(
+          `📖 [ORDER BOOK] ⚠️ Error checking on-chain orders:`,
+          error.message
+        );
+      }
+    }
+
+    console.log(
+      `📖 [ORDER BOOK] Total revealed orders for ${pair}: ${revealedOrders.length}`
+    );
+
+    // Debug: Log revealed orders
+    if (revealedOrders.length > 0) {
+      console.log(
+        `📖 [ORDER BOOK] Revealed orders for ${pair}:`,
+        revealedOrders.map((o) => ({
+          id: o.orderId,
+          type: o.orderType,
+          amount: o.amount,
+          price: o.price,
+          tokenA: o.tokenA,
+          tokenB: o.tokenB,
+        }))
+      );
     }
 
     // Separate buy and sell orders
@@ -1762,6 +2041,11 @@ app.post("/api/darkpool/order/reveal", async (req: any, res: any) => {
 
         // Update order status
         foundOrder.status = "REVEALED";
+        foundOrder.amount = amount;
+        foundOrder.price = price;
+
+        // Save orders to file
+        saveOrdersToFile();
 
         console.log(
           `✅ Order revealed ON-CHAIN: ${orderId} (${foundOrder.orderType} ${amount} ${foundOrder.tokenA}) TX: ${txHash}`
@@ -1778,6 +2062,11 @@ app.post("/api/darkpool/order/reveal", async (req: any, res: any) => {
 
         // Fallback to off-chain update
         foundOrder.status = "REVEALED";
+        foundOrder.amount = amount;
+        foundOrder.price = price;
+
+        // Save orders to file
+        saveOrdersToFile();
 
         res.json({
           success: true,
@@ -1788,6 +2077,11 @@ app.post("/api/darkpool/order/reveal", async (req: any, res: any) => {
     } else {
       // No smart contract service available
       foundOrder.status = "REVEALED";
+      foundOrder.amount = amount;
+      foundOrder.price = price;
+
+      // Save orders to file
+      saveOrdersToFile();
 
       console.log(
         `🎭 Order revealed (demo): ${orderId} (${foundOrder.orderType} ${amount} ${foundOrder.tokenA})`
