@@ -50,7 +50,6 @@ const getAllowedOrigins = () => {
     origins.push(...customOrigins);
   }
 
-  console.log("🌐 Allowed CORS origins:", origins);
   return origins;
 };
 
@@ -75,7 +74,6 @@ const corsOptions = {
     });
 
     if (isAllowed) {
-      console.log(`🌐 CORS: Origin ${origin} allowed`);
       callback(null, true);
     } else {
       console.warn(`⚠️ CORS: Origin ${origin} not allowed`);
@@ -1633,17 +1631,9 @@ app.get("/api/darkpool/orderbook/:pair", async (req: any, res: any) => {
 
     const [tokenA, tokenB] = pair.split("-");
 
-    console.log(
-      `📖 [ORDER BOOK] Getting order book for pair: ${pair} (${tokenA}-${tokenB})`
-    );
-
     // Get all revealed orders for this pair from ON-CHAIN + local storage
     const revealedOrders: UserOrder[] = [];
 
-    // 1. First, get local orders from userOrders map
-    console.log(
-      `📖 [ORDER BOOK] Checking local orders (${userOrders.size} users)`
-    );
     for (const [user, orders] of userOrders.entries()) {
       orders.forEach((order) => {
         if (order.status === "REVEALED") {
@@ -1651,9 +1641,6 @@ app.get("/api/darkpool/orderbook/:pair", async (req: any, res: any) => {
             (order.tokenA === tokenA && order.tokenB === tokenB) ||
             (order.tokenA === tokenB && order.tokenB === tokenA)
           ) {
-            console.log(
-              `📖 [ORDER BOOK] ✅ Adding local revealed order ${order.orderId}`
-            );
             revealedOrders.push(order);
           }
         }
@@ -1720,10 +1707,6 @@ app.get("/api/darkpool/orderbook/:pair", async (req: any, res: any) => {
                       timestamp: Date.now(),
                       trader: onChainOrder.trader,
                     };
-
-                    console.log(
-                      `📖 [ORDER BOOK] Order ${orderId} details: ${orderData.orderType} ${orderData.amount} ${orderData.tokenA}/${orderData.tokenB} @ ${orderData.price} by ${orderData.trader}`
-                    );
 
                     // Check if this order matches our trading pair
                     if (
@@ -1832,25 +1815,6 @@ app.get("/api/darkpool/orderbook/:pair", async (req: any, res: any) => {
           error.message
         );
       }
-    }
-
-    console.log(
-      `📖 [ORDER BOOK] Total revealed orders for ${pair}: ${revealedOrders.length}`
-    );
-
-    // Debug: Log revealed orders
-    if (revealedOrders.length > 0) {
-      console.log(
-        `📖 [ORDER BOOK] Revealed orders for ${pair}:`,
-        revealedOrders.map((o) => ({
-          id: o.orderId,
-          type: o.orderType,
-          amount: o.amount,
-          price: o.price,
-          tokenA: o.tokenA,
-          tokenB: o.tokenB,
-        }))
-      );
     }
 
     // Separate buy and sell orders

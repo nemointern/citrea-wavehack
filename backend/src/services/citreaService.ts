@@ -341,19 +341,16 @@ export class CitreaService {
           })) as any;
 
           // Only include orders that were actually revealed (have amount > 0)
-          if (
-            revealedOrder &&
-            revealedOrder.amount &&
-            revealedOrder.amount > 0n
-          ) {
+          // Use array indexing like in getRevealedOrder function
+          if (revealedOrder && revealedOrder[3] && revealedOrder[3] > 0n) {
             revealedOrders.push({
               orderId: Number(orderId),
-              trader: revealedOrder.trader,
-              tokenA: revealedOrder.tokenA,
-              tokenB: revealedOrder.tokenB,
-              amount: revealedOrder.amount,
-              price: revealedOrder.price,
-              orderType: revealedOrder.orderType === 0 ? "BUY" : "SELL",
+              trader: revealedOrder[0], // trader
+              tokenA: revealedOrder[1], // tokenA
+              tokenB: revealedOrder[2], // tokenB
+              amount: revealedOrder[3], // amount
+              price: revealedOrder[5], // price
+              orderType: Number(revealedOrder[7]) === 0 ? "BUY" : "SELL", // orderType
               batchId,
               timestamp: Date.now(),
             });
@@ -547,7 +544,6 @@ export class CitreaService {
         functionName: "revealedOrders",
         args: [orderId],
       });
-      console.log(`🔍 [DEBUG] Raw order ${orderId}:`, order);
       // Check if order exists (trader is not zero address)
       if (!order || order[0] === "0x0000000000000000000000000000000000000000") {
         return null;
